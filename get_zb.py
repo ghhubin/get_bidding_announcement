@@ -1,4 +1,4 @@
-# -*- coding:utf-8 -*-
+﻿# -*- coding:utf-8 -*-
 import urllib
 import httplib
 import re
@@ -20,6 +20,10 @@ class CCGP_HUBEI:
         self.fh = filehandler
         self.pagesize = 50  # 15,25,50,100
         self.hostname = 'www.ccgp-hubei.gov.cn'
+
+    def write_html(self,prjName,urlstr):
+        self.fh.write('<a href="'+urlstr+'" target="_blank" title="">')
+        self.fh.write('<font size="5">'+prjName+'</font></a><p></p>\n')
 
     def getpage(self, curpage):
         values = {'rank': '$rank', 'queryInfo.curPage': curpage, 'queryInfo.pageSize': self.pagesize,
@@ -73,9 +77,9 @@ class CCGP_HUBEI:
                 urlstr = 'http://' + self.hostname + url.group().replace('href="', '').replace('"', '')
                 for key in keys:
                     if prjName.find(key) >= 0:
-                        print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
-                        self.fh.write(timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore') + '\n')
-                        self.fh.write(urlstr + '\n\n')
+                        w_prjName = timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                        self.write_html(w_prjName,urlstr)
+                        print w_prjName
                         break
 
     def get_all_context(self):
@@ -83,8 +87,8 @@ class CCGP_HUBEI:
         itemnum_p = re.compile('共(\d+)条记录', re.S)
         itemnum = string.atoi(re.search(itemnum_p, first_page).group().replace('共', '').replace('条记录', ''))
         self.fh.write(
-            '\n==============================================1==================================================\n\n')
-        print '\n==============================================1==================================================\n'
+            '<p>=============================================='+self.hostname+'==================================================</p>\n')
+        print '\n=============================================='+self.hostname+'==================================================\n'
         if itemnum == 0:
             print '没有发现招标公告'
             return 0
@@ -101,6 +105,11 @@ class JY_WHZBTB:
         self.hostname = 'www.jy.whzbtb.com'
         self.fh = filehandler
         self.keys = [k.decode('utf-8') for k in keys]
+
+    def write_html(self,prjName,urlstr):
+        self.fh.write('<a href="'+urlstr+'" target="_blank" title="">')
+        self.fh.write('<font size="5">'+ prjName + '</font></a><p></p>\n')
+
 
     def getpage(self, pageno):
         values = {'page': pageno, 'rows': '10', 'prjName': '', 'evaluationMethod': '', 'prjbuildCorpName': '',
@@ -146,8 +155,8 @@ class JY_WHZBTB:
     def getcontext(self):
 
         self.fh.write(
-            '\n==============================================2==================================================\n\n')
-        print '\n==============================================2==================================================\n'
+            '<p>=============================================='+self.hostname+'==================================================</p>\n')
+        print '\n=============================================='+self.hostname+'==================================================\n'
         p = 0
         while True:
             p += 1
@@ -159,12 +168,10 @@ class JY_WHZBTB:
                 for key in self.keys:
                     prjName = jdata['rows'][i]['tenderPrjName']
                     if prjName.find(key) >= 0:
-                        print jdata['rows'][i]['noticeStartDate'].encode('gbk') + '  ' + prjName.encode('gbk')
-                        self.fh.write(
-                            jdata['rows'][i]['noticeStartDate'].encode('gbk') + '  ' + prjName.encode('gbk') + '\n')
-                        self.fh.write(
-                            'http://www.jy.whzbtb.com/V2PRTS/TendererNoticeInfoDetail.do?id=' + jdata['rows'][i][
-                                'id'] + '\n\n')
+                        w_prjName = jdata['rows'][i]['noticeStartDate'].encode('gbk') + '  ' + prjName.encode('gbk')
+                        w_url = 'http://www.jy.whzbtb.com/V2PRTS/TendererNoticeInfoDetail.do?id=' + jdata['rows'][i]['id']
+                        self.write_html(w_prjName,w_url )
+                        print w_prjName
                         break
 
 
@@ -178,6 +185,10 @@ class HBGGZY:
         self.keys = [k.decode('utf-8').encode('gbk') for k in keys]
         self.CategoryIDs = [('004001006001', u'房建市政工程'), ('004001006002', u'交通工程'), ('004001006003', u'水利工程'),
                             ('004001006004', u'国土整治'), ('004001006005', u'其他项目'), ('004001006006', u'铁路工程')]
+
+    def write_html(self,prjName,urlstr):
+        self.fh.write('<a href="'+urlstr+'" target="_blank" title="">')
+        self.fh.write('<font size="5">'+prjName+'</font></a><p></p>\n')
 
     def getpage(self, CategoryID):
 
@@ -248,18 +259,17 @@ class HBGGZY:
                 urlstr = 'http://' + self.hostname + url.group().replace('href="', '').replace('"', '')
                 for key in self.keys:
                     if prjName.find(key) >= 0:
-                        self.fh.write(timestr + '  ' + prjName + '\n')
-                        self.fh.write(urlstr + '\n\n')
+                        self.write_html(timestr + '  ' + prjName,urlstr)
                         print timestr + '  ' + prjName
                         break
         return 0
 
     def get_all_context(self):
         self.fh.write(
-            '\n==============================================3==================================================\n\n')
-        print '\n==============================================3==================================================\n'
+            '<p>=============================================='+self.hostname+'==================================================</p>\n')
+        print '\n=============================================='+self.hostname+'==================================================\n'
         for cid in self.CategoryIDs:
-            self.fh.write('-----------------' + cid[1].encode('gbk') + '------------------\n')
+            self.fh.write('<p>-----------------' + cid[1].encode('gbk') + '------------------</p>\n')
             print '-----------------' + cid[1].encode('gbk') + '------------------\n'
             self.ViewState = ''
             self.curpage = 1
@@ -271,7 +281,7 @@ class HBGGZY:
 
 
 CurTime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-filehandler = file('bidding' + CurTime + '.txt', 'a')
+filehandler = file('bidding' + CurTime + '.html', 'a')
 
 ccgp = CCGP_HUBEI(filehandler)
 ccgp.get_all_context()
