@@ -8,7 +8,7 @@ import json
 from StringIO import StringIO
 import gzip
 
-keys = ('审计', '造价', '第三方', '评估', '投资', '咨询', '中介')
+keys = ('审计', '造价', '第三方', '评估', '投资', '咨询', '中介','安装','来源')
 ndaysago = 5
 
 endtime = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -153,7 +153,6 @@ class JY_WHZBTB:
         return page
 
     def getcontext(self):
-
         self.fh.write(
             '<p>=============================================='+self.hostname+'==================================================</p>\n')
         print '\n=============================================='+self.hostname+'==================================================\n'
@@ -213,7 +212,7 @@ class HBGGZY:
             # print response.reason
             headers = response.getheaders()
             page = response.read()
-            # print page
+            #print page
         except Exception, e:
             print e
             self.fh.close()
@@ -279,6 +278,90 @@ class HBGGZY:
                 self.curpage += 1
                 page = self.getpage(cid[0])
 
+class HBBIDDING:
+    def __init__(self, filehandler):
+        self.hostname = 'www.hbbidding.com.cn'
+        self.fh = filehandler
+        self.curpage = 1
+        self.overtime_count = 0
+
+    def write_html(self,prjName,urlstr):
+        self.fh.write('<a href="'+urlstr+'" target="_blank" title="">')
+        self.fh.write('<font size="5">'+prjName+'</font></a><p></p>\n')
+
+
+    def getpage(self):
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+               'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+             #  'Accept-Encoding': 'gzip, deflate',
+               'Referer': 'http://www.hbbidding.com.cn/zbgg.html'
+               }
+
+        url_path = '/zbgg/&FrontNews_list01-1355994659966_pageNo='+str(self.curpage)+'&FrontNews_list01-1355994659966_pageSize=20.html'
+        httpClient = None
+        try:
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient.request('GET', url_path, None, headers)
+            response = httpClient.getresponse()
+            # print response.status
+            # print response.reason
+            #headers = response.getheaders()
+            page = response.read()
+            #print page.decode('utf-8').encode('gbk', 'ignore')
+        except Exception, e:
+            print e
+            self.fh.close()
+        finally:
+            if httpClient:
+                httpClient.close()
+        return page
+
+    def get_one_page_context(self, page):
+        self.overtime_count = 0
+        table_p = re.compile('<div id="FrontNews_list01-1355994659966"(.*?)<div class="pageJump">', re.S)
+        table = re.search(table_p, page)
+        #print table.group().decode('utf-8').encode('gbk', 'ignore')
+        if table:
+            items_p = re.compile('<div class="newstitle">(.*?)</div>', re.S)
+            items = re.findall(items_p, table.group())  # 按条取出项目
+
+            release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
+            url_p = re.compile('href=\"(.*?)\"', re.S)                 # 取URL正则
+            projectname_p = re.compile('title="(.*?)" target="_self">', re.S)  # 取项目名称正则
+            #print len(items)
+            for item in items:
+                release_time = re.search(release_time_p, item)
+                projectname = re.search(projectname_p, item)
+                url = re.search(url_p, item)
+
+                timestr = release_time.group()
+                if timestr < begintime:
+                    self.overtime_count += 1
+                    if self.overtime_count < 10:
+                        continue
+                    else:
+                        return -1
+                print timestr + '************' + begintime
+                prjName = projectname.group().replace('title="', '').replace('" target="_self">','').strip()
+                urlstr = 'http://' + self.hostname + url.group().replace('href="', '').replace('"', '')
+                for key in keys:
+                    if prjName.find(key) >= 0:
+                        self.write_html(timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'),urlstr)
+                        print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                        break
+        return 0
+
+    def get_all_context(self):
+        self.fh.write(
+            '<p>==============================================' + self.hostname + '==================================================</p>\n')
+        print '\n==============================================' + self.hostname + '==================================================\n'
+        while self.curpage < 50:
+            page = self.getpage()
+            if self.get_one_page_context(page) == -1:
+                break
+            self.curpage += 1
+            print self.curpage
 
 CurTime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 filehandler = file('bidding' + CurTime + '.html', 'a')
@@ -291,6 +374,9 @@ whzbtb.getcontext()
 
 hbggzy = HBGGZY(filehandler)
 hbggzy.get_all_context()
+
+hbbidding = HBBIDDING(filehandler)
+hbbidding.get_all_context()
 
 filehandler.close()
 
