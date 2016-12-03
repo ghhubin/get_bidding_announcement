@@ -19,7 +19,14 @@ def write_html(filehandler,prjName, urlstr):
     filehandler.write('<a href="' + urlstr + '" target="_blank" title="">')
     filehandler.write('<font size="5">' + prjName + '</font></a><p></p>\n')
 
+def write_jump(filehandler,sitename,hostname):
+    filehandler.write('<a href="#'+ hostname +'">'+ u'跳转到'.encode('gbk') + sitename + u'招标公告列表'.encode('gbk') + '</a><p></p>')
+
+def write_returnheader(filehandler):
+    filehandler.write('<a href="#header">'+ u'跳转到页首'.encode('gbk') + '</a><p></p>')
+
 def write_header(filehandler,sitename,hostname):
+    filehandler.write('<a name="'+ hostname + '"></a>')
     filehandler.write(
         '<p>=========================================<font color="red" size="5">'+ sitename +'  '+ hostname + '</font>=============================================</p>\n')
     print '\n========================================='+ sitename +'  '+ hostname + '=============================================\n'
@@ -40,7 +47,7 @@ class CCGP_HUBEI:
                             ('420500',u'宜昌市'),('420300',u'十堰市'),('420900',u'孝感市'),('420800',u'荆门市'),('420700',u'鄂州市'),
                             ('421100',u'黄冈市'),('421200',u'咸宁市'),('421300',u'随州市'),('422800',u'恩施州'),('421400',u'仙桃市'),
                             ('421500',u'潜江市'),('421600',u'天门市'),('421700',u'神龙架林区')]
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self, pageindex,cid):
         values = {'rank': '$rank', 'queryInfo.curPage': pageindex, 'queryInfo.pageSize': self.pagesize,
@@ -140,6 +147,7 @@ class CCGP_HUBEI:
                         break
 
     def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         for cid in self.RegionIDs:
             self.fh.write('<p>-----------------<font color="red" size="5">' + cid[1].encode('gbk') + '</font>------------------</p>\n')
             print '-----------------' + cid[1].encode('gbk') + '------------------\n'
@@ -155,6 +163,7 @@ class CCGP_HUBEI:
             while curpage <= pagenum:
                 self.get_one_page_context(self.getpage(curpage,cid[0]))
                 curpage += 1
+        write_returnheader(self.fh)
 
 class HBGGZY:
     def __init__(self, filehandler):
@@ -171,7 +180,7 @@ class HBGGZY:
                             ('023001',u'宜昌市'),('023013',u'十堰市'),('023010',u'孝感市'),('023009',u'荆门市'),('023006',u'鄂州市'),
                             ('023007',u'黄冈市'),('023005',u'咸宁市'),('023014',u'随州市'),('023003',u'恩施州'),('023016',u'仙桃市'),
                             ('023011',u'潜江市'),('023015',u'天门市'),('023012',u'神龙架林区')]
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage_sj(self, CategoryID):    #取省级页面
         values = {'__VIEWSTATE': self.ViewState, '__EVENTTARGET': 'MoreInfoList1$Pager',
@@ -313,6 +322,7 @@ class HBGGZY:
         return 0
 
     def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         for cid in self.CategoryIDs:   #遍历省级
             self.fh.write('<p>-----------------' + cid[1].encode('gbk') + '------------------</p>\n')
             print '-----------------' + cid[1].encode('gbk') + '------------------\n'
@@ -333,6 +343,8 @@ class HBGGZY:
             while self.get_one_page_context(page) != -1:
                 self.curpage += 1
                 page = self.getpage_sz(rid[0])
+        write_returnheader(self.fh)
+
 
 class HONGSHAN:
     def __init__(self, filehandler):
@@ -341,8 +353,7 @@ class HONGSHAN:
         self.fh = filehandler
         self.pageindex = 1
         self.cookie = ''
-
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self):
         values = {'method': 'Data', 'cid': '175','currentPage': '%d' % self.pageindex, 'pageSize':'12', 'ids': '0'}
@@ -404,10 +415,12 @@ class HONGSHAN:
         return 0
 
     def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         page = self.getpage()
         while self.get_one_page_context(page) != -1:
             self.pageindex += 1
             page = self.getpage()
+        write_returnheader(self.fh)
 
 class XINZHOU:
     def __init__(self, filehandler):
@@ -417,8 +430,7 @@ class XINZHOU:
         self.page_suffix = ('','_1','_2','_3','_4','_5','_6','_7','_8','_9','_10','_11','_12','_13','_14')
         self.pageindex = 0
         self.cookie = ''
-
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self):
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
@@ -476,6 +488,7 @@ class XINZHOU:
         return 0
 
     def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         MaxPageNum = len(self.page_suffix)
         page = self.getpage()
         while self.get_one_page_context(page) != -1:
@@ -483,6 +496,7 @@ class XINZHOU:
             if self.pageindex >= MaxPageNum:
                 break
             page = self.getpage()
+        write_returnheader(self.fh)
 
 class WEHDZ:
     def __init__(self, filehandler):
@@ -491,7 +505,7 @@ class WEHDZ:
         self.fh = filehandler
         self.pageindex = 0
         self.cookie = ''
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self):
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
@@ -553,10 +567,120 @@ class WEHDZ:
         return 0
 
     def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         page = self.getpage()
         while self.get_one_page_context(page) != -1:
             self.pageindex += 1
             page = self.getpage()
+        write_returnheader(self.fh)
+
+class WEDZ:
+    def __init__(self, filehandler):
+        self.sitename = u'武汉经济开发区'
+        self.hostname = 'www.wedz.com.cn'
+        self.fh = filehandler
+        self.page_suffix = ('', '_1', '_2', '_3', '_4', '_5', '_6', '_7', '_8', '_9', '_10', '_11', '_12', '_13', '_14')
+        self.pageindex = 0
+        self.cookie = ''
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
+
+    def getpage(self):
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                   # 'Accept-Encoding': 'gzip, deflate',
+                   'Cookie': self.cookie,
+                   'Referer': 'http://www.wedz.com.cn/cggg/index.jhtml'}
+        url_path = '/cggg/index'+ self.page_suffix[self.pageindex] + '.jhtml'
+        httpClient = None
+        page = ''
+        try:
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient.request('GET', url_path, None, headers)
+            response = httpClient.getresponse()
+                    # print response.status
+                    # print response.reason
+            headers = response.getheaders()
+            page = response.read()
+                    # print page
+        except Exception, e:
+            print e
+        finally:
+            if httpClient:
+                httpClient.close()
+            for header_item in headers:
+                if header_item[0] == 'set-cookie':
+                    self.cookie += (header_item[1] + ';')
+            return page
+
+    def get_prj_name(self,urlpath):     #有些公告条目不全（以...结尾)，需从公告的正文里取标题
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                   # 'Accept-Encoding': 'gzip, deflate',
+                   'Cookie': self.cookie,
+                   'Referer': 'http://www.wedz.com.cn/cggg/index.jhtml'}
+        httpClient = None
+        page = ''
+        try:
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient.request('GET', urlpath, None, headers)
+            response = httpClient.getresponse()
+            # print response.status
+            # print response.reason
+            # print response.getheaders()
+            page = response.read()
+            # print page
+        except Exception, e:
+            print e
+        finally:
+            if httpClient:
+                httpClient.close()
+
+        project_name_p =  re.compile('<h1>(.*?)</h1>', re.S)
+        project_name =  re.search(project_name_p, page).group().replace('<h1>','').replace('</h1>','')
+        return project_name
+
+    def get_one_page_context(self, page):
+        table_p = re.compile('<div class="wei_rcgg">(.*?)</div>', re.S)
+        table = re.search(table_p, page)
+                # print table.group().decode('utf-8').encode('gbk', 'ignore')
+        if table:
+            items_p = re.compile('<li>(.*?)</li>', re.S)
+            items = re.findall(items_p, table.group())  # 按条取出项目
+
+            release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
+            url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
+            projectname_p = re.compile('</span>(.*?)</a>', re.S)  # 取项目名称正则
+
+            for item in items:
+                release_time = re.search(release_time_p, item)
+                projectname = re.search(projectname_p, item)
+                url = re.search(url_p, item)
+
+                timestr = release_time.group().replace('<td>', '').replace('</td>', '')
+                if timestr < begintime:
+                    return -1
+                prjName = projectname.group().replace('</span>', '').replace('</a>', '').strip()
+                urlstr = url.group().replace('href="', '').replace('"', '')
+                if prjName[-3:] == '...':
+                    prjName = self.get_prj_name(urlstr)
+                for key in keys:
+                    if prjName.find(key) >= 0:
+                        write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'),urlstr)
+                        print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                        break
+            return 0
+        else:
+            return -1
+
+    def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        page = self.getpage()
+        while self.get_one_page_context(page) != -1:
+            self.pageindex += 1
+            page = self.getpage()
+        write_returnheader(self.fh)
 
 #=====================================================================================================================
 class JY_WHZBTB:
@@ -638,7 +762,7 @@ class HBBIDDING:
         self.fh = filehandler
         self.curpage = 1
         self.overtime_count = 0
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self):
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
@@ -704,12 +828,14 @@ class HBBIDDING:
         return 0
 
     def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         while self.curpage < 50:
             page = self.getpage()
             if self.get_one_page_context(page) == -1:
                 break
             self.curpage += 1
             print self.curpage
+        write_returnheader(self.fh)
 
 class HSZTBZX:
     def __init__(self, filehandler):
@@ -886,24 +1012,29 @@ class XYSZTB:
 if __name__ == '__main__':
     CurTime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filehandler = file('bidding' + CurTime + '.html', 'a')
+    filehandler.write('<a name="header"></a>')
 
     ccgp = CCGP_HUBEI(filehandler)
+    hbggzy = HBGGZY(filehandler)
+    hbbidding = HBBIDDING(filehandler)
+    hongshan = HONGSHAN(filehandler)
+    xinzhou = XINZHOU(filehandler)
+    wehdz = WEHDZ(filehandler)
+    wedz = WEDZ(filehandler)
+
     ccgp.get_all_context()
 
-    hbggzy = HBGGZY(filehandler)
     hbggzy.get_all_context()
 
-    hbbidding = HBBIDDING(filehandler)
     hbbidding.get_all_context()
 
-    hongshan = HONGSHAN(filehandler)
     hongshan.get_all_context()
 
-    xinzhou = XINZHOU(filehandler)
     xinzhou.get_all_context()
 
-    wehdz = WEHDZ(filehandler)
     wehdz.get_all_context()
+
+    wedz.get_all_context()
 
     filehandler.close()
 
