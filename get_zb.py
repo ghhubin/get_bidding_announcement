@@ -278,7 +278,9 @@ class HBGGZY:
 
         pp_p =  re.compile('<td id="tdTitle"(.*?)</td>', re.S)
         pp =  re.search(pp_p, page)
-
+        if pp == None:
+            print 'no found!!!!!!'
+            return pp
         project_name_p = re.compile('<b>(.*?)</b>', re.S)
         project_name = re.search(project_name_p,pp.group())
         return project_name.group().replace('<b>','').replace('</b>','').strip()
@@ -312,6 +314,9 @@ class HBGGZY:
                 if timestr < begintime:
                     return -1
                 urlstr =  url.group().replace('href="', '').replace('"', '')
+                prjName = self.get_prj_name(urlstr)
+                if prjName == None:
+                    continue
                 prjName = self.get_prj_name(urlstr)      #读取报告页面，并从报告里取项目名称
                 urlstr = 'http://'+ self.hostname + urlstr
                 for key in self.keys:
@@ -392,7 +397,8 @@ class HONGSHAN:
     def get_one_page_context(self, page):
         items_p = re.compile('<tr>(.*?)</tr>', re.S)
         items = re.findall(items_p, page)  # 按条取出项目
-
+        if items == None:     #没找到条目，退出
+            return -1
         release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
         url_p = re.compile('href=\"(.*?)\"', re.S)  # 取URL正则
         projectname_p = re.compile('title=\'(.*?)\'', re.S)  # 取项目名称正则
@@ -466,6 +472,8 @@ class XINZHOU:
         items_p = re.compile('<div class="work_list">(.*?)</div>', re.S)
         items = re.findall(items_p, page)  # 按条取出项目
 
+        if items == None:   #没找到条目，退出
+            return -1
         release_time_p = re.compile('\d\d\d\d年\d\d月\d\d', re.S)  # 取发布时间正则
         url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
         projectname_p = re.compile('target="_blank">(.*?)</a>', re.S)  # 取项目名称正则
@@ -541,13 +549,14 @@ class WEHDZ:
         table_p = re.compile('<table class="info-list">(.*?)<td colspan="4" class="c">', re.S)
         table = re.search(table_p, page)
         # print table.group().decode('utf-8').encode('gbk', 'ignore')
-        if table:
-           items_p = re.compile('<td><a (.*?)<th>所属主题</th>', re.S)
-           items = re.findall(items_p, table.group())  # 按条取出项目
+        if table == None:   #如果没有内容，退出
+            return -1
+        items_p = re.compile('<td><a (.*?)<th>所属主题</th>', re.S)
+        items = re.findall(items_p, table.group())  # 按条取出项目
 
-           release_time_p = re.compile('<td>\d\d\d\d-\d\d-\d\d</td>', re.S)  # 取发布时间正则
-           url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
-           projectname_p = re.compile('<th>标(.*?)</td>', re.S)  # 取项目名称正则
+        release_time_p = re.compile('<td>\d\d\d\d-\d\d-\d\d</td>', re.S)  # 取发布时间正则
+        url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
+        projectname_p = re.compile('<th>标(.*?)</td>', re.S)  # 取项目名称正则
 
         for item in items:
             release_time = re.search(release_time_p, item)
@@ -645,34 +654,33 @@ class WEDZ:
         table_p = re.compile('<div class="wei_rcgg">(.*?)</div>', re.S)
         table = re.search(table_p, page)
                 # print table.group().decode('utf-8').encode('gbk', 'ignore')
-        if table:
-            items_p = re.compile('<li>(.*?)</li>', re.S)
-            items = re.findall(items_p, table.group())  # 按条取出项目
-
-            release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
-            url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
-            projectname_p = re.compile('</span>(.*?)</a>', re.S)  # 取项目名称正则
-
-            for item in items:
-                release_time = re.search(release_time_p, item)
-                projectname = re.search(projectname_p, item)
-                url = re.search(url_p, item)
-
-                timestr = release_time.group().replace('<td>', '').replace('</td>', '')
-                if timestr < begintime:
-                    return -1
-                prjName = projectname.group().replace('</span>', '').replace('</a>', '').strip()
-                urlstr = url.group().replace('href="', '').replace('"', '')
-                if prjName[-3:] == '...':
-                    prjName = self.get_prj_name(urlstr)
-                for key in keys:
-                    if prjName.find(key) >= 0:
-                        write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'),urlstr)
-                        print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
-                        break
-            return 0
-        else:
+        if table == None:
             return -1
+        items_p = re.compile('<li>(.*?)</li>', re.S)
+        items = re.findall(items_p, table.group())  # 按条取出项目
+
+        release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
+        url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
+        projectname_p = re.compile('</span>(.*?)</a>', re.S)  # 取项目名称正则
+
+        for item in items:
+            release_time = re.search(release_time_p, item)
+            projectname = re.search(projectname_p, item)
+            url = re.search(url_p, item)
+
+            timestr = release_time.group().replace('<td>', '').replace('</td>', '')
+            if timestr < begintime:
+                return -1
+            prjName = projectname.group().replace('</span>', '').replace('</a>', '').strip()
+            urlstr = url.group().replace('href="', '').replace('"', '')
+            if prjName[-3:] == '...':
+                prjName = self.get_prj_name(urlstr)
+            for key in keys:
+                if prjName.find(key) >= 0:
+                    write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'),urlstr)
+                    print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                    break
+        return 0
 
     def get_all_context(self):
         write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
