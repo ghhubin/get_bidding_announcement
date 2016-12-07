@@ -690,39 +690,32 @@ class WEDZ:
             page = self.getpage()
         write_returnheader(self.fh)
 
-#=====================================================================================================================
+
 class JY_WHZBTB:
     def __init__(self, filehandler):
         self.sitename = u'武汉市建设工程交易中心'
         self.hostname = 'www.jy.whzbtb.com'
         self.fh = filehandler
         self.keys = [k.decode('utf-8') for k in keys]
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
-
-    def write_html(self,prjName,urlstr):
-        self.fh.write('<a href="'+urlstr+'" target="_blank" title="">')
-        self.fh.write('<font size="5">'+ prjName + '</font></a><p></p>\n')
-
-
-    def getpage(self, pageno):
-        values = {'page': pageno, 'rows': '10', 'prjName': '', 'evaluationMethod': '', 'prjbuildCorpName': '',
-                  'registrationId': '',
-                  'noticeStartDate': begintime, 'noticeEndDate': ''}
-
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+        self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                    'Accept': 'application/json, text/javascript, */*; q=0.01',
                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
                    'Accept-Encoding': 'gzip,deflate',
                    'Referer': 'http://www.jy.whzbtb.com/V2PRTS/TendererNoticeInfoListInit.do',
                    'X-Requested-With': 'XMLHttpRequest',
                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
+    def getpage(self, pageno):
+        values = {'page': pageno, 'rows': '10', 'prjName': '', 'evaluationMethod': '', 'prjbuildCorpName': '',
+                  'registrationId': '',
+                  'noticeStartDate': begintime, 'noticeEndDate': ''}
         url = '/V2PRTS/TendererNoticeInfoList.do'
         httpClient = None
         params = urllib.urlencode(values)
         try:
             httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
-            httpClient.request('POST', url, params, headers)
+            httpClient.request('POST', url, params, self.headers)
             response = httpClient.getresponse()
             # print response.status
             # print response.reason
@@ -746,6 +739,7 @@ class JY_WHZBTB:
         return page
 
     def getcontext(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         p = 0
         while True:
             p += 1
@@ -762,6 +756,7 @@ class JY_WHZBTB:
                         write_html(self.fh,w_prjName,w_url )
                         print w_prjName
                         break
+        write_returnheader(self.fh)
 
 class HBBIDDING:
     def __init__(self, filehandler):
@@ -845,6 +840,7 @@ class HBBIDDING:
             print self.curpage
         write_returnheader(self.fh)
 
+#=====================================================================================================================
 class HSZTBZX:
     def __init__(self, filehandler):
         self.sitename = u'黄石公共资源交易中心'
@@ -1025,6 +1021,7 @@ if __name__ == '__main__':
     ccgp = CCGP_HUBEI(filehandler)
     hbggzy = HBGGZY(filehandler)
     hbbidding = HBBIDDING(filehandler)
+    whzbtb = JY_WHZBTB(filehandler)
     hongshan = HONGSHAN(filehandler)
     xinzhou = XINZHOU(filehandler)
     wehdz = WEHDZ(filehandler)
@@ -1035,6 +1032,8 @@ if __name__ == '__main__':
     hbggzy.get_all_context()
 
     hbbidding.get_all_context()
+
+    whzbtb.getcontext()
 
     hongshan.get_all_context()
 
@@ -1047,8 +1046,7 @@ if __name__ == '__main__':
     filehandler.close()
 
 '''
-whzbtb = JY_WHZBTB(filehandler)
-whzbtb.getcontext()
+
 
 hsztbzx = HSZTBZX(filehandler)
 hsztbzx.get_all_context()
