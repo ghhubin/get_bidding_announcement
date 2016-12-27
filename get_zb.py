@@ -1,4 +1,4 @@
-﻿# -*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 import urllib
 import httplib
 import re
@@ -7,9 +7,11 @@ import datetime
 import json
 from StringIO import StringIO
 import gzip
+import sys
+import ConfigParser
 
-keys = ('审计', '造价', '第三方', '评估', '投资', '咨询', '中介','安装','公告','SJ','ZJ')
-ndaysago = 5
+keys = ('会计','审计', '造价', '第三方', '评估', '投资', '咨询', '中介','绩效','内控','SJ','ZJ')
+ndaysago = 6
 
 endtime = datetime.datetime.now().strftime("%Y-%m-%d")
 begintime = (datetime.datetime.now() - datetime.timedelta(days=ndaysago)).strftime("%Y-%m-%d")
@@ -37,6 +39,8 @@ class CCGP_HUBEI:
         self.fh = filehandler
         self.pagesize = 50       # 15,25,50,100
         self.hostname = 'www.ccgp-hubei.gov.cn'
+        self.page = ''
+        self.project_name = ''
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
@@ -57,72 +61,73 @@ class CCGP_HUBEI:
                   'queryInfo.QYBM': cid, 'queryInfo.JHHH': ''}
 
         httpClient = None
-        page = ''
+        self.page = ''
         params = urllib.urlencode(values)
         try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
             httpClient.request('POST', '/fnoticeAction!listFNoticeInfos.action', params, self.headers)
             response = httpClient.getresponse()
             # print response.status
             # print response.reason
             # print response.getheaders()
-            page = response.read()
+            self.page = response.read()
             #print page.decode('utf-8').encode('gbk', 'ignore')
         except Exception, e:
             print e
-            self.fh.close()
+            return -1
         finally:
             if httpClient:
                 httpClient.close()
-        return page
+        return 0
 
     def get_prj_name(self,urlpath):     #有些公告条目不全（以...结尾)，需从公告的正文里取标题
         httpClient = None
-        page = ''
+        self.page = ''
+        self.project_name = ''
         try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
             httpClient.request('GET', urlpath, None, self.headers)
             response = httpClient.getresponse()
             # print response.status
             # print response.reason
             # print response.getheaders()
-            page = response.read()
+            self.page = response.read()
             # print page
         except Exception, e:
             print e
-            self.fh.close()
+            return -1
         finally:
             if httpClient:
                 httpClient.close()
 
         report_iframe_p = re.compile('<iframe(.*?)</iframe>', re.S)
-        report_iframe = re.search(report_iframe_p, page)
+        report_iframe = re.search(report_iframe_p, self.page)
         report_url_p = re.compile('src="(.*?)"')
         report_url = re.search(report_url_p,report_iframe.group()).group().replace('src="', '').replace('"', '')  # 取出报告url
-
+        self.page = ''
         try:    #读取报告
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
             httpClient.request('GET', report_url, None, self.headers)
             response = httpClient.getresponse()
             # print response.status
             # print response.reason
             # print response.getheaders()
-            page = response.read()
+            self.page = response.read()
             # print page
         except Exception, e:
             print e
-            self.fh.close()
+            return -1
         finally:
             if httpClient:
                 httpClient.close()
         project_name_p =  re.compile('<h1>(.*?)</h1>', re.S)
-        project_name =  re.search(project_name_p, page).group().replace('<h1>','').replace('</h1>','')
-        return project_name
+        self.project_name =  re.search(project_name_p, self.page).group().replace('<h1>','').replace('</h1>','')
+        return 0
 
 
-    def get_one_page_context(self, page):
+    def get_one_page_context(self):
         p1 = re.compile('<div class="news_content ">(.*?)</div>', re.S)
-        r1 = re.search(p1, page)  # 取出所有项目
+        r1 = re.search(p1, self.page)  # 取出所有项目
         if r1:
             p2 = re.compile('<li>(.*?)</li>', re.S)
             r2 = re.findall(p2, r1.group())  # 按条取出项目
@@ -138,7 +143,8 @@ class CCGP_HUBEI:
                 prjName = projectname.group().replace('target="_blank">', '').replace('</a>', '').strip()
                 urlstr = 'http://' + self.hostname + url.group().replace('href="', '').replace('"', '')
                 if prjName[-3:] == '...':
-                    prjName = self.get_prj_name(urlstr)
+                    if self.get_prj_name(urlstr) == 0:
+                        prjName = self.project_name
                 for key in keys:
                     if prjName.find(key) >= 0:
                         w_prjName = timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
@@ -151,17 +157,22 @@ class CCGP_HUBEI:
         for cid in self.RegionIDs:
             self.fh.write('<p>-----------------<font color="red" size="5">' + cid[1].encode('gbk') + '</font>------------------</p>\n')
             print '-----------------' + cid[1].encode('gbk') + '------------------\n'
-            first_page = self.getpage(0,cid[0])
+            if self.getpage(0,cid[0]) != 0:
+                continue
             itemnum_p = re.compile('共(\d+)条记录', re.S)
-            itemnum = string.atoi(re.search(itemnum_p, first_page).group().replace('共', '').replace('条记录', ''))
+            itemnum = string.atoi(re.search(itemnum_p, self.page).group().replace('共', '').replace('条记录', ''))
             if itemnum == 0:
                 print cid[1].encode('gbk')+u'没有符合时间段要求的公告'.encode('gbk')
                 continue
             pagenum = itemnum / self.pagesize + 1
             curpage = 2
-            self.get_one_page_context(first_page)
+            self.get_one_page_context()
             while curpage <= pagenum:
-                self.get_one_page_context(self.getpage(curpage,cid[0]))
+                if self.getpage(curpage, cid[0]) == 0:
+                    self.get_one_page_context()
+                else:
+                    break
+                self.get_one_page_context()
                 curpage += 1
         write_returnheader(self.fh)
 
@@ -271,7 +282,6 @@ class HBGGZY:
             # print page
         except Exception, e:
             print e
-            self.fh.close()
         finally:
             if httpClient:
                 httpClient.close()
@@ -385,7 +395,6 @@ class HONGSHAN:
                         # print page
         except Exception, e:
             print e
-            self.fh.close()
         finally:
             if httpClient:
                 httpClient.close()
@@ -459,7 +468,6 @@ class XINZHOU:
             #print page
         except Exception, e:
             print e
-            self.fh.close()
         finally:
             if httpClient:
                 httpClient.close()
@@ -536,7 +544,6 @@ class WEHDZ:
                     # print page
         except Exception, e:
             print e
-            self.fh.close()
         finally:
            if httpClient:
                httpClient.close()
@@ -697,25 +704,27 @@ class JY_WHZBTB:
         self.hostname = 'www.jy.whzbtb.com'
         self.fh = filehandler
         self.keys = [k.decode('utf-8') for k in keys]
-        self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
-                   'Accept': 'application/json, text/javascript, */*; q=0.01',
-                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
-                   'Accept-Encoding': 'gzip,deflate',
-                   'Referer': 'http://www.jy.whzbtb.com/V2PRTS/TendererNoticeInfoListInit.do',
-                   'X-Requested-With': 'XMLHttpRequest',
-                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self, pageno):
         values = {'page': pageno, 'rows': '10', 'prjName': '', 'evaluationMethod': '', 'prjbuildCorpName': '',
                   'registrationId': '',
                   'noticeStartDate': begintime, 'noticeEndDate': ''}
+
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+                   'Accept': 'application/json, text/javascript, */*; q=0.01',
+                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                   'Accept-Encoding': 'gzip,deflate',
+                   'Referer': 'http://www.jy.whzbtb.com/V2PRTS/TendererNoticeInfoListInit.do',
+                   'X-Requested-With': 'XMLHttpRequest',
+                   'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'}
+
         url = '/V2PRTS/TendererNoticeInfoList.do'
         httpClient = None
         params = urllib.urlencode(values)
         try:
             httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
-            httpClient.request('POST', url, params, self.headers)
+            httpClient.request('POST', url, params, headers)
             response = httpClient.getresponse()
             # print response.status
             # print response.reason
@@ -732,7 +741,6 @@ class JY_WHZBTB:
                 page = response.read()
         except Exception, e:
             print e
-            self.fh.close()
         finally:
             if httpClient:
                 httpClient.close()
@@ -789,7 +797,6 @@ class HBBIDDING:
             #print page.decode('utf-8').encode('gbk', 'ignore')
         except Exception, e:
             print e
-            self.fh.close()
         finally:
             if httpClient:
                 httpClient.close()
@@ -872,7 +879,6 @@ class HSZTBZX:
             # print page.decode('utf-8').encode('gbk', 'ignore')
         except Exception, e:
             print e
-            self.fh.close()
         finally:
             if httpClient:
                 httpClient.close()
@@ -962,7 +968,6 @@ class XYSZTB:
             #print page
         except Exception, e:
             print e
-            self.fh.close()
         finally:
             if httpClient:
                 httpClient.close()
@@ -1014,34 +1019,47 @@ class XYSZTB:
 
 
 if __name__ == '__main__':
+
+    config = ConfigParser.ConfigParser()
+    config.read("get_zb.ini")
+    config_keys = config.get("conf", "keys").split(',')
+    if len(config_keys) > 0:
+        keys = [key.strip().decode('gbk').encode('utf-8') for key in config_keys ]
+    ndaysago = config.getint("conf", "days")
+
+    ccgp_switch =  re.sub('#(.*?)\Z','',config.get('conf','www.ccgp-hubei.gov.cn')).strip()
+    hbggzy_switch = re.sub('#(.*?)\Z','',config.get('conf','www.hbggzy.cn')).strip()
+    hbbidding_switch = re.sub('#(.*?)\Z', '', config.get('conf', 'www.hbbidding.com.cn')).strip()
+    whzbtb_switch = re.sub('#(.*?)\Z', '', config.get('conf', 'www.jy.whzbtb.com')).strip()
+    hongshan_switch = re.sub('#(.*?)\Z', '', config.get('conf', 'www.hongshan.gov.cn')).strip()
+    xinzhou_switch = re.sub('#(.*?)\Z', '', config.get('conf', 'www.whxinzhou.gov.cn')).strip()
+    wehdz_switch = re.sub('#(.*?)\Z', '', config.get('conf', 'www.wehdz.gov.cn')).strip()
+    wedz_switch = re.sub('#(.*?)\Z', '', config.get('conf', 'www.wedz.com.cn')).strip()
+
+
     CurTime = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     filehandler = file('bidding' + CurTime + '.html', 'a')
     filehandler.write('<a name="header"></a>')
 
-    ccgp = CCGP_HUBEI(filehandler)
-    hbggzy = HBGGZY(filehandler)
-    hbbidding = HBBIDDING(filehandler)
-    whzbtb = JY_WHZBTB(filehandler)
-    hongshan = HONGSHAN(filehandler)
-    xinzhou = XINZHOU(filehandler)
-    wehdz = WEHDZ(filehandler)
-    wedz = WEDZ(filehandler)
+    if   hbggzy_switch  == 'om':   hbggzy = HBGGZY(filehandler)
+    if   hbbidding_switch == 'on':   hbbidding = HBBIDDING(filehandler)
+    if   whzbtb_switch == 'on':   whzbtb = JY_WHZBTB(filehandler)
+    if   hongshan_switch == 'on':  hongshan = HONGSHAN(filehandler)
+    if   xinzhou_switch == 'on':   xinzhou = XINZHOU(filehandler)
+    if   wehdz_switch == 'on':    wehdz = WEHDZ(filehandler)
+    if   wedz_switch == 'on':   wedz = WEDZ(filehandler)
+    if  ccgp_switch    == 'on':   ccgp = CCGP_HUBEI(filehandler)
 
-    ccgp.get_all_context()
 
-    hbggzy.get_all_context()
+    if hbggzy_switch == 'om':    hbggzy.get_all_context()
+    if hbbidding_switch == 'on':  hbbidding.get_all_context()
+    if whzbtb_switch == 'on':   whzbtb.getcontext()
+    if hongshan_switch == 'on':   hongshan.get_all_context()
+    if xinzhou_switch == 'on':   xinzhou.get_all_context()
+    if wehdz_switch == 'on':   wehdz.get_all_context()
+    if wedz_switch == 'on':   wedz.get_all_context()
+    if ccgp_switch == 'on':    ccgp.get_all_context()
 
-    hbbidding.get_all_context()
-
-    whzbtb.getcontext()
-
-    hongshan.get_all_context()
-
-    xinzhou.get_all_context()
-
-    wehdz.get_all_context()
-
-    wedz.get_all_context()
 
     filehandler.close()
 
