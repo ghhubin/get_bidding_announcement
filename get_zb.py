@@ -209,7 +209,7 @@ class HBGGZY:
         httpClient = None
         page = ''
         try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
             httpClient.request('POST', url_path, params, headers)
             response = httpClient.getresponse()
             # print response.status
@@ -243,7 +243,7 @@ class HBGGZY:
         httpClient = None
         page = ''
         try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
             httpClient.request('POST', url_path, params, headers)
             response = httpClient.getresponse()
             #print response.status
@@ -272,7 +272,7 @@ class HBGGZY:
         httpClient = None
         page = ''
         try:    #读取报告
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
             httpClient.request('GET', urlpath, None, headers)
             response = httpClient.getresponse()
             # print response.status
@@ -1041,7 +1041,7 @@ if __name__ == '__main__':
     filehandler = file('bidding' + CurTime + '.html', 'a')
     filehandler.write('<a name="header"></a>')
 
-    if   hbggzy_switch  == 'om':   hbggzy = HBGGZY(filehandler)
+    if   hbggzy_switch  == 'on':   hbggzy = HBGGZY(filehandler)
     if   hbbidding_switch == 'on':   hbbidding = HBBIDDING(filehandler)
     if   whzbtb_switch == 'on':   whzbtb = JY_WHZBTB(filehandler)
     if   hongshan_switch == 'on':  hongshan = HONGSHAN(filehandler)
@@ -1051,7 +1051,7 @@ if __name__ == '__main__':
     if  ccgp_switch    == 'on':   ccgp = CCGP_HUBEI(filehandler)
 
 
-    if hbggzy_switch == 'om':    hbggzy.get_all_context()
+    if hbggzy_switch == 'on':    hbggzy.get_all_context()
     if hbbidding_switch == 'on':  hbbidding.get_all_context()
     if whzbtb_switch == 'on':   whzbtb.getcontext()
     if hongshan_switch == 'on':   hongshan.get_all_context()
