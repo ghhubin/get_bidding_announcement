@@ -65,7 +65,7 @@ class CCGP_HUBEI:
         params = urllib.urlencode(values)
         try:
             httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
-            httpClient.request('POST', '/fnoticeAction!listFNoticeInfos.action', params, self.headers)
+            httpClient.request('POST', '/fnoticeAction!listFNoticeInfos_n.action', params, self.headers)
             response = httpClient.getresponse()
             # print response.status
             # print response.reason
