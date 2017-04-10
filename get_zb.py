@@ -13,10 +13,6 @@ import ConfigParser
 keys = ('会计','审计', '造价', '第三方', '评估', '投资', '咨询', '中介','绩效','内控','SJ','ZJ')
 ndaysago = 6
 
-endtime = datetime.datetime.now().strftime("%Y-%m-%d")
-begintime = (datetime.datetime.now() - datetime.timedelta(days=ndaysago)).strftime("%Y-%m-%d")
-
-
 def write_html(filehandler,prjName, urlstr):
     filehandler.write('<a href="' + urlstr + '" target="_blank" title="">')
     filehandler.write('<font size="5">' + prjName + '</font></a><p></p>\n')
@@ -1026,6 +1022,9 @@ if __name__ == '__main__':
     if len(config_keys) > 0:
         keys = [key.strip().decode('gbk').encode('utf-8') for key in config_keys ]
     ndaysago = config.getint("conf", "days")
+
+    endtime = datetime.datetime.now().strftime("%Y-%m-%d")
+    begintime = (datetime.datetime.now() - datetime.timedelta(days=ndaysago)).strftime("%Y-%m-%d")
 
     ccgp_switch =  re.sub('#(.*?)\Z','',config.get('conf','www.ccgp-hubei.gov.cn')).strip()
     hbggzy_switch = re.sub('#(.*?)\Z','',config.get('conf','www.hbggzy.cn')).strip()
