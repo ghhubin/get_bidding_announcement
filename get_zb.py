@@ -33,41 +33,30 @@ class CCGP_HUBEI:
     def __init__(self, filehandler):
         self.sitename = u'中国政府采购。湖北'
         self.fh = filehandler
-        self.pagesize = 50       # 15,25,50,100
         self.hostname = 'www.ccgp-hubei.gov.cn'
         self.page = ''
         self.project_name = ''
+        self.timeflag = 0
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
                    # 'Accept-Encoding': 'gzip, deflate',
                    'Referer': 'http://www.ccgp-hubei.gov.cn/fnoticeAction!listFNoticeInfos.action',
                    'Content-Type': 'application/x-www-form-urlencoded'}
-        self.RegionIDs = [('420001',u'省级公告'),('420100',u'武汉市'),('420200',u'黄石市'),('420600',u'襄阳市'),('421000',u'荆州市'),
-                            ('420500',u'宜昌市'),('420300',u'十堰市'),('420900',u'孝感市'),('420800',u'荆门市'),('420700',u'鄂州市'),
-                            ('421100',u'黄冈市'),('421200',u'咸宁市'),('421300',u'随州市'),('422800',u'恩施州'),('421400',u'仙桃市'),
-                            ('421500',u'潜江市'),('421600',u'天门市'),('421700',u'神龙架林区')]
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
-    def getpage(self, pageindex,cid):
-        values = {'rank': '$rank', 'queryInfo.curPage': pageindex, 'queryInfo.pageSize': self.pagesize,
-                  'queryInfo.TITLE': '',
-                  'queryInfo.FBRMC': '', 'queryInfo.GGLX': '招标公告', 'queryInfo.CGLX': '',
-                  'queryInfo.CGFS': '', 'queryInfo.BEGINTIME1': begintime, 'queryInfo.ENDTIME1': endtime,
-                  'queryInfo.QYBM': cid, 'queryInfo.JHHH': ''}
-
+    def getpage(self, url):
         httpClient = None
         self.page = ''
-        params = urllib.urlencode(values)
         try:
             httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
-            httpClient.request('POST', '/fnoticeAction!listFNoticeInfos_n.action', params, self.headers)
+            httpClient.request('GET', url, None, self.headers)
             response = httpClient.getresponse()
             # print response.status
             # print response.reason
             # print response.getheaders()
             self.page = response.read()
-            #print page.decode('utf-8').encode('gbk', 'ignore')
+            #print self.page.decode('utf-8').encode('gbk', 'ignore')
         except Exception, e:
             print e
             return -1
@@ -122,7 +111,7 @@ class CCGP_HUBEI:
 
 
     def get_one_page_context(self):
-        p1 = re.compile('<div class="news_content ">(.*?)</div>', re.S)
+        p1 = re.compile('<div class="news_content(.*?)</div>', re.S)
         r1 = re.search(p1, self.page)  # 取出所有项目
         if r1:
             p2 = re.compile('<li>(.*?)</li>', re.S)
@@ -136,8 +125,13 @@ class CCGP_HUBEI:
                 url = re.search(url_p, item)
 
                 timestr = release_time.group()
+                if timestr < begintime:
+                    self.timeflag = 1
+                    return 0
+
                 prjName = projectname.group().replace('target="_blank">', '').replace('</a>', '').strip()
-                urlstr = 'http://' + self.hostname + url.group().replace('href="', '').replace('"', '')
+                urlstr = 'http://' + self.hostname + url.group().replace('href=\"../..', '').replace('"', '')
+                
                 if prjName[-3:] == '...':
                     if self.get_prj_name(urlstr) == 0:
                         prjName = self.project_name
@@ -150,26 +144,44 @@ class CCGP_HUBEI:
 
     def get_all_context(self):
         write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
-        for cid in self.RegionIDs:
-            self.fh.write('<p>-----------------<font color="red" size="5">' + cid[1].encode('gbk') + '</font>------------------</p>\n')
-            print '-----------------' + cid[1].encode('gbk') + '------------------\n'
-            if self.getpage(0,cid[0]) != 0:
-                continue
-            itemnum_p = re.compile('共(\d+)条记录', re.S)
-            itemnum = string.atoi(re.search(itemnum_p, self.page).group().replace('共', '').replace('条记录', ''))
-            if itemnum == 0:
-                print cid[1].encode('gbk')+u'没有符合时间段要求的公告'.encode('gbk')
-                continue
-            pagenum = itemnum / self.pagesize + 1
-            curpage = 2
+        self.fh.write('<p>-----------------<font color="red" size="5">'+u'省级'.encode('gbk')+'</font>------------------</p>\n')
+        print '-----------------'+u'省级'.encode('gbk')+'------------------\n'
+        self.timeflag = 0
+        if self.getpage('/pages/html/szbnotice.html') != 0:
+                return -1
+        self.get_one_page_context()
+        if self.timeflag == 0:
+            if self.getpage('/pages/html/szbnotice1.html') != 0:
+                return -1
             self.get_one_page_context()
-            while curpage <= pagenum:
-                if self.getpage(curpage, cid[0]) == 0:
-                    self.get_one_page_context()
-                else:
-                    break
-                self.get_one_page_context()
-                curpage += 1
+        if self.timeflag == 0:
+            if self.getpage('/pages/html/szbnotice2.html') != 0:
+                return -1
+            self.get_one_page_context()
+        if self.timeflag == 0:
+            if self.getpage('/pages/html/szbnotice3.html') != 0:
+                return -1
+            self.get_one_page_context()
+
+        self.fh.write('<p>-----------------<font color="red" size="5">'+u'市级'.encode('gbk')+'</font>------------------</p>\n')
+        print '-----------------'+u'市级'.encode('gbk')+'------------------\n'
+        self.timeflag = 0
+        if self.getpage('/pages/html/xzbnotice.html') != 0:
+                return -1
+        self.get_one_page_context()
+        if self.timeflag == 0:
+            if self.getpage('/pages/html/xzbnotice1.html') != 0:
+                return -1
+            self.get_one_page_context()
+        if self.timeflag == 0:
+            if self.getpage('/pages/html/xzbnotice2.html') != 0:
+                return -1
+            self.get_one_page_context()
+        if self.timeflag == 0:
+            if self.getpage('/pages/html/xzbnotice3.html') != 0:
+                return -1
+            self.get_one_page_context()
+            
         write_returnheader(self.fh)
 
 class HBGGZY:
