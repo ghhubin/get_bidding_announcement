@@ -10,7 +10,6 @@ import gzip
 import sys
 import ConfigParser
 
-keys = ('会计','审计', '造价', '第三方', '评估', '投资', '咨询', '中介','绩效','内控','SJ','ZJ')
 ndaysago = 6
 
 def write_html(filehandler,prjName, urlstr):
@@ -707,17 +706,16 @@ class WEDZ:
 
 
 class JY_WHZBTB:
+    '''网站是unicode编码'''
     def __init__(self, filehandler):
         self.sitename = u'武汉市建设工程交易中心'
         self.hostname = 'www.jy.whzbtb.com'
         self.fh = filehandler
-        self.keys = [k.decode('utf-8') for k in keys]
+        self.keys = [key.decode('utf-8') for key in keys ]
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self, pageno):
-        values = {'page': pageno, 'rows': '10', 'prjName': '', 'evaluationMethod': '', 'prjbuildCorpName': '',
-                  'registrationId': '',
-                  'noticeStartDate': begintime, 'noticeEndDate': ''}
+        values = {'page': pageno, 'rows': '20'}
 
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                    'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -757,17 +755,26 @@ class JY_WHZBTB:
     def getcontext(self):
         write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
         p = 0
-        while True:
+        ltt_count = 0    #小于开始时间的条目计数器
+        MAX_COUNT = 10   #连续10条时间小于开始时间，结束
+        while ltt_count < MAX_COUNT :
             p += 1
             jdata = json.loads(self.getpage(p))
             rows_num = len(jdata['rows'])
             if rows_num == 0:
                 break
             for i in range(rows_num):
+                NSDate = jdata['rows'][i]['noticeStartDate'][:10]
+                if   NSDate  < begintime:
+                    ltt_count += 1
+                    if ltt_count >= 10:   #连续10条时间小于开始时间，结束
+                        break
+                    continue
+                ltt_count = 0
+                prjName = jdata['rows'][i]['tenderPrjName']
                 for key in self.keys:
-                    prjName = jdata['rows'][i]['tenderPrjName']
                     if prjName.find(key) >= 0:
-                        w_prjName = jdata['rows'][i]['noticeStartDate'].encode('gbk') + '  ' + prjName.encode('gbk')
+                        w_prjName = NSDate.encode('gbk') + '  ' + prjName.encode('gbk')
                         w_url = 'http://www.jy.whzbtb.com/V2PRTS/TendererNoticeInfoDetail.do?id=' + jdata['rows'][i]['id']
                         write_html(self.fh,w_prjName,w_url )
                         print w_prjName
