@@ -64,8 +64,9 @@ class CCGP_HUBEI:
         
         handler = urllib2.HTTPCookieProcessor(self.cookie)
         opener = urllib2.build_opener(handler)
+        req = urllib2.Request(url,headers=headers)
         try:
-            response = opener.open(url,timeout=15)
+            response = opener.open(req,timeout=15)
             #for item in self.cookie:
             #    print 'Name = '+item.name
             #    print 'Value = '+item.value
@@ -130,12 +131,14 @@ class CCGP_HUBEI:
             r2 = re.findall(p2, r1.group())  # 按条取出项目
             release_time_p = re.compile('(\d+)-(\d+)-(\d+)', re.S)  # 取发布时间正则
             url_p = re.compile('href=\"(.*?)\"', re.S)  # 取URL正则
+            prjName_p = re.compile('/font>](.*?)</a><span>', re.S)  # 取项目名称
             for item in r2:
                 strTime = re.search(release_time_p, item).group()
                 strUrl = re.search(url_p, item).group().replace('href="','').replace('"','')
                 print strUrl
-                self.get_prj_name(strUrl)
-                prjName = self.project_name
+                #self.get_prj_name(strUrl)
+                prjName = re.search(prjName_p, item).group().replace('/font>][','[').replace('</a><span>','')
+                #print prjName.decode('utf-8').encode('gbk', 'ignore')
                 for key in keys:
                     if prjName.find(key) >= 0:
                         w_prjName = strTime + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
@@ -185,7 +188,7 @@ class HBGGZY:
         httpClient = None
         page = ''
         try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
             httpClient.request('POST', url_path, params, headers)
             response = httpClient.getresponse()
             # print response.status
