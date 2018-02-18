@@ -1,5 +1,7 @@
 # -*- coding:utf-8 -*-
 import urllib
+import urllib2
+import cookielib
 import httplib
 import re
 import string
@@ -33,6 +35,7 @@ class CCGP_HUBEI:
         self.sitename = u'中国政府采购。湖北'
         self.fh = filehandler
         self.hostname = 'www.ccgp-hubei.gov.cn'
+        self.cookie=cookielib.CookieJar()
         self.page = ''
         self.project_name = ''
         self.timeflag = 0
@@ -40,17 +43,51 @@ class CCGP_HUBEI:
                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
                    # 'Accept-Encoding': 'gzip, deflate',
-                   'Referer': 'http://www.ccgp-hubei.gov.cn/fnoticeAction!listFNoticeInfos.action',
+                   'Referer': 'http://www.ccgp-hubei.gov.cn:8050/quSer/search',
                    'Content-Type': 'application/x-www-form-urlencoded'}
+        self.RegionIDs = [('420001',u'省直辖'),('4201??',u'武汉市'),('4202??',u'黄石市'),('4206??',u'襄阳市'),('4210??',u'荆州市'),
+                            ('4205??',u'宜昌市'),('4203??',u'十堰市'),('4209??',u'孝感市'),('4208??',u'荆门市'),('4207??',u'鄂州市'),
+                            ('4211??',u'黄冈市'),('4212??',u'咸宁市'),('4213??',u'随州市'),('4228??',u'恩施州'),('421401',u'仙桃市'),
+                            ('421501',u'潜江市'),('421601',u'天门市'),('421701',u'神龙架林区')]
+        self.getcookie()
+        self.endtime = datetime.datetime.now().strftime("%Y/%m/%d")
+        self.begintime = (datetime.datetime.now() - datetime.timedelta(days=ndaysago)).strftime("%Y/%m/%d")
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
-    def getpage(self, url):
+    def getcookie(self):
+        url = 'http://'+self.hostname+':8050/quSer/initSearch'
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                   # 'Accept-Encoding': 'gzip, deflate',
+                   'Referer': 'http://www.ccgp-hubei.gov.cn/notice/cggg/pzbgg/index_1.html'}
+        
+        handler = urllib2.HTTPCookieProcessor(self.cookie)
+        opener = urllib2.build_opener(handler)
+        try:
+            response = opener.open(url,timeout=15)
+            #for item in self.cookie:
+            #    print 'Name = '+item.name
+            #    print 'Value = '+item.value
+        except Exception, e:
+            print e
+            return -1
+        return 0    
+    
+    def getpage(self, cid):
         httpClient = None
         self.page = ''
+        values = {'queryInfo.type':'xmgg', 'queryInfo.key': '','queryInfo.jhhh':'','queryInfo.gglx':u'招标公告'.encode('utf8'),
+                  'queryInfo.cglx':'','queryInfo.cgfs':'','queryInfo.qybm':cid,'queryInfo.begin':self.begintime,'queryInfo.end':self.endtime,
+                  'queryInfo.pageNo':'1','queryInfo.pageSize':'10000'}          
+        params = urllib.urlencode(values)
+        url = 'http://'+self.hostname+':8050/quSer/search'
+        print values
         try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
-            httpClient.request('GET', url, None, self.headers)
-            response = httpClient.getresponse()
+            req = urllib2.Request(url,data=params,headers=self.headers)
+            #利用urllib2的build_opener方法创建一个opener
+            opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cookie))
+            response = opener.open(req,timeout=15)
             # print response.status
             # print response.reason
             # print response.getheaders()
@@ -64,123 +101,55 @@ class CCGP_HUBEI:
                 httpClient.close()
         return 0
 
-    def get_prj_name(self,urlpath):     #有些公告条目不全（以...结尾)，需从公告的正文里取标题
-        httpClient = None
+    def get_prj_name(self,url):     #从公告的正文里取标题
         self.page = ''
         self.project_name = ''
         try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
-            httpClient.request('GET', urlpath, None, self.headers)
-            response = httpClient.getresponse()
+            req = urllib2.Request(url,headers=self.headers)
+            #利用urllib2的build_opener方法创建一个opener
+            opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cookie))
+            response = opener.open(req,timeout=15)
             # print response.status
             # print response.reason
             # print response.getheaders()
             self.page = response.read()
-            # print page
         except Exception, e:
             print e
             return -1
-        finally:
-            if httpClient:
-                httpClient.close()
-
-        report_iframe_p = re.compile('<iframe(.*?)</iframe>', re.S)
-        report_iframe = re.search(report_iframe_p, self.page)
-        report_url_p = re.compile('src="(.*?)"')
-        report_url = re.search(report_url_p,report_iframe.group()).group().replace('src="', '').replace('"', '')  # 取出报告url
-        self.page = ''
-        try:    #读取报告
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
-            httpClient.request('GET', report_url, None, self.headers)
-            response = httpClient.getresponse()
-            # print response.status
-            # print response.reason
-            # print response.getheaders()
-            self.page = response.read()
-            # print page
-        except Exception, e:
-            print e
-            return -1
-        finally:
-            if httpClient:
-                httpClient.close()
-        project_name_p =  re.compile('<h1>(.*?)</h1>', re.S)
-        self.project_name =  re.search(project_name_p, self.page).group().replace('<h1>','').replace('</h1>','')
+        
+        project_name_p =  re.compile('<h2 class=\"title\">(.*?)</h2>', re.S)
+        self.project_name =  re.search(project_name_p, self.page).group().replace('<h2 class=\"title\">','').replace('</h2>','')
         return 0
 
 
     def get_one_page_context(self):
-        p1 = re.compile('<div class="news_content(.*?)</div>', re.S)
+        p1 = re.compile('<ul class="news-list-content(.*?)</ul>', re.S)
         r1 = re.search(p1, self.page)  # 取出所有项目
         if r1:
             p2 = re.compile('<li>(.*?)</li>', re.S)
             r2 = re.findall(p2, r1.group())  # 按条取出项目
             release_time_p = re.compile('(\d+)-(\d+)-(\d+)', re.S)  # 取发布时间正则
             url_p = re.compile('href=\"(.*?)\"', re.S)  # 取URL正则
-            projectname_p = re.compile('target=\"_blank\">(.*?)</a>', re.S)  # 取项目名称正则
             for item in r2:
-                release_time = re.search(release_time_p, item)
-                projectname = re.search(projectname_p, item)
-                url = re.search(url_p, item)
-
-                timestr = release_time.group()
-                if timestr < begintime:
-                    self.timeflag = 1
-                    return 0
-
-                prjName = projectname.group().replace('target="_blank">', '').replace('</a>', '').strip()
-                urlstr = 'http://' + self.hostname + url.group().replace('href=\"../..', '').replace('"', '')
-                
-                if prjName[-3:] == '...':
-                    if self.get_prj_name(urlstr) == 0:
-                        prjName = self.project_name
+                strTime = re.search(release_time_p, item).group()
+                strUrl = re.search(url_p, item).group().replace('href="','').replace('"','')
+                print strUrl
+                self.get_prj_name(strUrl)
+                prjName = self.project_name
                 for key in keys:
                     if prjName.find(key) >= 0:
-                        w_prjName = timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
-                        write_html(self.fh,w_prjName,urlstr)
+                        w_prjName = strTime + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                        write_html(self.fh,w_prjName,strUrl)
                         print w_prjName
                         break
 
     def get_all_context(self):
         write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
-        self.fh.write('<p>-----------------<font color="red" size="5">'+u'省级'.encode('gbk')+'</font>------------------</p>\n')
-        print '-----------------'+u'省级'.encode('gbk')+'------------------\n'
-        self.timeflag = 0
-        if self.getpage('/pages/html/szbnotice.html') != 0:
-                return -1
-        self.get_one_page_context()
-        if self.timeflag == 0:
-            if self.getpage('/pages/html/szbnotice1.html') != 0:
-                return -1
-            self.get_one_page_context()
-        if self.timeflag == 0:
-            if self.getpage('/pages/html/szbnotice2.html') != 0:
-                return -1
-            self.get_one_page_context()
-        if self.timeflag == 0:
-            if self.getpage('/pages/html/szbnotice3.html') != 0:
-                return -1
-            self.get_one_page_context()
-
-        self.fh.write('<p>-----------------<font color="red" size="5">'+u'市级'.encode('gbk')+'</font>------------------</p>\n')
-        print '-----------------'+u'市级'.encode('gbk')+'------------------\n'
-        self.timeflag = 0
-        if self.getpage('/pages/html/xzbnotice.html') != 0:
-                return -1
-        self.get_one_page_context()
-        if self.timeflag == 0:
-            if self.getpage('/pages/html/xzbnotice1.html') != 0:
-                return -1
-            self.get_one_page_context()
-        if self.timeflag == 0:
-            if self.getpage('/pages/html/xzbnotice2.html') != 0:
-                return -1
-            self.get_one_page_context()
-        if self.timeflag == 0:
-            if self.getpage('/pages/html/xzbnotice3.html') != 0:
-                return -1
-            self.get_one_page_context()
-            
+        for cid in self.RegionIDs:   #遍历省市级
+            self.fh.write('<p>-----------------' + cid[1].encode('gbk') + '------------------</p>\n')
+            print '-----------------' + cid[1].encode('gbk') + '------------------\n'
+            self.getpage(cid[0])
+            self.get_one_page_context() 
         write_returnheader(self.fh)
 
 class HBGGZY:
