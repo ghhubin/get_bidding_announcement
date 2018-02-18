@@ -38,7 +38,6 @@ class CCGP_HUBEI:
         self.cookie=cookielib.CookieJar()
         self.page = ''
         self.project_name = ''
-        self.timeflag = 0
         self.headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
@@ -83,7 +82,7 @@ class CCGP_HUBEI:
                   'queryInfo.pageNo':'1','queryInfo.pageSize':'10000'}          
         params = urllib.urlencode(values)
         url = 'http://'+self.hostname+':8050/quSer/search'
-        print values
+        #print values
         try:
             req = urllib2.Request(url,data=params,headers=self.headers)
             #利用urllib2的build_opener方法创建一个opener
