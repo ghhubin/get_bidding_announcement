@@ -75,7 +75,6 @@ class CCGP_HUBEI:
         return 0    
     
     def getpage(self, cid):
-        httpClient = None
         self.page = ''
         values = {'queryInfo.type':'xmgg', 'queryInfo.key': '','queryInfo.jhhh':'','queryInfo.gglx':u'招标公告'.encode('utf8'),
                   'queryInfo.cglx':'','queryInfo.cgfs':'','queryInfo.qybm':cid,'queryInfo.begin':self.begintime,'queryInfo.end':self.endtime,
@@ -96,9 +95,6 @@ class CCGP_HUBEI:
         except Exception, e:
             print e
             return -1
-        finally:
-            if httpClient:
-                httpClient.close()
         return 0
 
     def get_prj_name(self,url):     #从公告的正文里取标题
