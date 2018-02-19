@@ -48,7 +48,8 @@ class CCGP_HUBEI:
                             ('4205??',u'宜昌市'),('4203??',u'十堰市'),('4209??',u'孝感市'),('4208??',u'荆门市'),('4207??',u'鄂州市'),
                             ('4211??',u'黄冈市'),('4212??',u'咸宁市'),('4213??',u'随州市'),('4228??',u'恩施州'),('421401',u'仙桃市'),
                             ('421501',u'潜江市'),('421601',u'天门市'),('421701',u'神龙架林区')]
-        self.getcookie()
+        if self.getcookie() != 0:
+            print u'网站页面错误!'.encode('gbk', 'ignore')
         self.endtime = datetime.datetime.now().strftime("%Y/%m/%d")
         self.begintime = (datetime.datetime.now() - datetime.timedelta(days=ndaysago)).strftime("%Y/%m/%d")
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
@@ -69,6 +70,8 @@ class CCGP_HUBEI:
             #for item in self.cookie:
             #    print 'Name = '+item.name
             #    print 'Value = '+item.value
+            #print response.getcode()
+            #print response.read().decode('utf-8').encode('gbk', 'ignore')
         except Exception, e:
             print e
             return -1
@@ -146,8 +149,8 @@ class CCGP_HUBEI:
         for cid in self.RegionIDs:   #遍历省市级
             self.fh.write('<p>-----------------' + cid[1].encode('gbk') + '------------------</p>\n')
             print '-----------------' + cid[1].encode('gbk') + '------------------\n'
-            self.getpage(cid[0])
-            self.get_one_page_context() 
+            if self.getpage(cid[0]) == 0:
+                self.get_one_page_context() 
         write_returnheader(self.fh)
 
 class HBGGZY:
@@ -753,8 +756,10 @@ class HBBIDDING:
         self.sitename = u'湖北设备工程招标有限公司'
         self.hostname = 'www.hbbidding.com.cn'
         self.fh = filehandler
+        self.page = ''
         self.curpage = 1
-        self.overtime_count = 0
+        self.maxpage = 1
+        self.pageflag = 0
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage(self):
@@ -762,12 +767,12 @@ class HBBIDDING:
                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
              #  'Accept-Encoding': 'gzip, deflate',
-               'Referer': 'http://www.hbbidding.com.cn/zbgg.html'
+               'Referer': 'http://www.hbbidding.com.cn/list/16.html'
                }
 
-        url_path = '/zbgg/&FrontNews_list01-1355994659966_pageNo='+str(self.curpage)+'&FrontNews_list01-1355994659966_pageSize=20.html'
+        url_path = '/list/16.html?page='+str(self.curpage)
         httpClient = None
-        page = ''
+        self.page = ''
         try:
             httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
             httpClient.request('GET', url_path, None, headers)
@@ -775,43 +780,47 @@ class HBBIDDING:
             # print response.status
             # print response.reason
             #headers = response.getheaders()
-            page = response.read()
-            #print page.decode('utf-8').encode('gbk', 'ignore')
+            self.page = response.read()
+            #print self.page.decode('utf-8').encode('gbk', 'ignore')
+            httpClient.close()
+            return 0
         except Exception, e:
             print e
-        finally:
             if httpClient:
                 httpClient.close()
-        return page
+            return -1
 
-    def get_one_page_context(self, page):
+    def get_one_page_context(self):
         self.overtime_count = 0
-        table_p = re.compile('<div id="FrontNews_list01-1355994659966"(.*?)<div class="pageJump">', re.S)
-        table = re.search(table_p, page)
+        table_p = re.compile('<div class="noticeList1">(.*?)</div>', re.S)
+        table = re.search(table_p, self.page)
         #print table.group().decode('utf-8').encode('gbk', 'ignore')
         if table:
-            items_p = re.compile('<div class="newstitle">(.*?)</div>', re.S)
+            items_p = re.compile('<li>(.*?)</li>', re.S)
             items = re.findall(items_p, table.group())  # 按条取出项目
 
             release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
             url_p = re.compile('href=\"(.*?)\"', re.S)                 # 取URL正则
-            projectname_p = re.compile('title="(.*?)" target="_self">', re.S)  # 取项目名称正则
+            projectname_p = re.compile('<h5 class="TXTovehid tran300 fl">(.*?)</h5>', re.S)  # 取项目名称正则
             #print len(items)
+            self.pageflag = 0
             for item in items:
                 release_time = re.search(release_time_p, item)
                 projectname = re.search(projectname_p, item)
                 url = re.search(url_p, item)
 
                 timestr = release_time.group()
-                if timestr < begintime:
-                    self.overtime_count += 1
-                    if self.overtime_count < 10:
-                        continue
-                    else:
-                        return -1
-                print timestr + '************' + begintime
-                prjName = projectname.group().replace('title="', '').replace('" target="_self">','').strip()
+                if (timestr < begintime):
+                    continue
+                else:
+                    self.pageflag = 1
+                prjName = projectname.group().replace('<h5 class="TXTovehid tran300 fl">', '').replace('</h5>','').strip()
                 urlstr = 'http://' + self.hostname + url.group().replace('href="', '').replace('"', '')
+                print urlstr
+                print begintime
+                print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                #if prjName[-3:] == '...':
+                #    prjName = self.get_prj_name(urlstr)
                 for key in keys:
                     if prjName.find(key) >= 0:
                         write_html(self.fh,timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'),urlstr)
@@ -821,12 +830,14 @@ class HBBIDDING:
 
     def get_all_context(self):
         write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
-        while self.curpage < 50:
-            page = self.getpage()
-            if self.get_one_page_context(page) == -1:
-                break
+        while self.curpage <= self.maxpage:
+            print str(self.curpage)+'  '+str(self.maxpage)
+            if self.getpage() == 0:
+                if self.get_one_page_context() == -1:
+                    break
             self.curpage += 1
-            print self.curpage
+            if self.pageflag == 1:
+                self.maxpage = self.curpage + 5
         write_returnheader(self.fh)
 
 #=====================================================================================================================
