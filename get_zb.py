@@ -341,236 +341,6 @@ class HBGGZY:
                 self.getpage_sz(rid[0])
         write_returnheader(self.fh)
 
-
-class HONGSHAN:
-    def __init__(self, filehandler):
-        self.sitename = u'武汉市洪山区政府'
-        self.hostname = 'www.hongshan.gov.cn'
-        self.fh = filehandler
-        self.pageindex = 1
-        self.cookie = ''
-        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
-
-    def getpage(self):
-        values = {'method': 'Data', 'cid': '175','currentPage': '%d' % self.pageindex, 'pageSize':'12', 'ids': '0'}
-
-        headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
-                        # 'Accept-Encoding': 'gzip, deflate',
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'Referer': 'http://www.hongshan.gov.cn/nav.shtml'}
-
-        url_path = '/hs/PageHandler'
-        params = urllib.urlencode(values)
-        httpClient = None
-        page = ''
-        try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
-            httpClient.request('POST', url_path, params, headers)
-            response = httpClient.getresponse()
-            # print response.status
-            # print response.reason
-            headers = response.getheaders()
-            page = response.read()
-                        # print page
-        except Exception, e:
-            print e
-        finally:
-            if httpClient:
-                httpClient.close()
-        for header_item in headers:
-            if header_item[0] == 'set-cookie':
-                self.cookie += (header_item[1] + ';')
-        return page
-
-    def get_one_page_context(self, page):
-        items_p = re.compile('<tr>(.*?)</tr>', re.S)
-        items = re.findall(items_p, page)  # 按条取出项目
-        if items == None:     #没找到条目，退出
-            return -1
-        release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
-        url_p = re.compile('href=\"(.*?)\"', re.S)  # 取URL正则
-        projectname_p = re.compile('title=\'(.*?)\'', re.S)  # 取项目名称正则
-
-        for item in items:
-            release_time = re.search(release_time_p, item)
-            projectname = re.search(projectname_p, item)
-            url = re.search(url_p, item)
-
-            timestr = release_time.group()
-            if timestr < begintime:
-                return -1
-            prjName = projectname.group().replace('title=\'', '').replace('\'','').strip()
-            urlstr = 'http://' + self.hostname + '/' + url.group().replace('href="', '').replace('"', '')
-            for key in keys:
-                if prjName.find(key) >= 0:
-                    write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'), urlstr)
-                    print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
-                    break
-        return 0
-
-    def get_all_context(self):
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
-        page = self.getpage()
-        while self.get_one_page_context(page) != -1:
-            self.pageindex += 1
-            page = self.getpage()
-        write_returnheader(self.fh)
-
-class XINZHOU:
-    def __init__(self, filehandler):
-        self.sitename = u'武汉市新洲政府采购网'
-        self.hostname = 'www.whxinzhou.gov.cn'
-        self.fh = filehandler
-        self.page_suffix = ('','_1','_2','_3','_4','_5','_6','_7','_8','_9','_10','_11','_12','_13','_14')
-        self.pageindex = 0
-        self.cookie = ''
-        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
-
-    def getpage(self):
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
-                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
-                     # 'Accept-Encoding': 'gzip, deflate',
-                   'Referer': 'http://www.whxinzhou.gov.cn/bmdw/cgzx/cgxw/cggg/index.shtml'}
-
-        url_path = '/bmdw/cgzx/cgxw/cggg/index' + self.page_suffix[self.pageindex] + '.shtml'
-        httpClient = None
-        page = ''
-        try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
-            httpClient.request('GET', url_path, None, headers)
-            response = httpClient.getresponse()
-                    # print response.status
-                    # print response.reason
-            headers = response.getheaders()
-            page = response.read()
-            #print page
-        except Exception, e:
-            print e
-        finally:
-            if httpClient:
-                httpClient.close()
-        for header_item in headers:
-            if header_item[0] == 'set-cookie':
-                self.cookie += (header_item[1] + ';')
-        return page
-
-    def get_one_page_context(self, page):
-        items_p = re.compile('<div class="work_list">(.*?)</div>', re.S)
-        items = re.findall(items_p, page)  # 按条取出项目
-
-        if items == None:   #没找到条目，退出
-            return -1
-        release_time_p = re.compile('\d\d\d\d年\d\d月\d\d', re.S)  # 取发布时间正则
-        url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
-        projectname_p = re.compile('target="_blank">(.*?)</a>', re.S)  # 取项目名称正则
-
-        for item in items:
-            release_time = re.search(release_time_p, item)
-            projectname = re.search(projectname_p, item)
-            url = re.search(url_p, item)
-
-            timestr = release_time.group().replace('年','-').replace('月','-')
-            if timestr < begintime:
-                return -1
-            prjName = projectname.group().replace('target="_blank">', '').replace('</a>', '').strip()
-            urlstr = 'http://' + self.hostname + '/bmdw/cgzx/cgxw/cggg/' + url.group().replace('href="', '').replace('"', '')
-            for key in keys:
-                if prjName.find(key) >= 0:
-                    write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'),urlstr)
-                    print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
-                    break
-        return 0
-
-    def get_all_context(self):
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
-        MaxPageNum = len(self.page_suffix)
-        page = self.getpage()
-        while self.get_one_page_context(page) != -1:
-            self.pageindex += 1
-            if self.pageindex >= MaxPageNum:
-                break
-            page = self.getpage()
-        write_returnheader(self.fh)
-
-class WEHDZ:
-    def __init__(self, filehandler):
-        self.sitename = u'武汉东湖新技术开发区'
-        self.hostname = 'www.wehdz.gov.cn'
-        self.fh = filehandler
-        self.pageindex = 0
-        self.cookie = ''
-        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
-
-    def getpage(self):
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
-                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
-                           # 'Accept-Encoding': 'gzip, deflate',
-                   'Referer': 'http://www.wehdz.gov.cn/info/iList.jsp?isSd=false&node_id=GKwehdz&cat_id=3855'}
-
-        url_path = '/info/iList.jsp?node_id=GKwehdz&site_id=HIWCMwehdz&cat_id=3855&cur_page=%d' %self.pageindex
-        httpClient = None
-        page = ''
-        try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
-            httpClient.request('GET', url_path, None, headers)
-            response = httpClient.getresponse()
-                    # print response.status
-                    # print response.reason
-            headers = response.getheaders()
-            page = response.read()
-                    # print page
-        except Exception, e:
-            print e
-        finally:
-           if httpClient:
-               httpClient.close()
-        for header_item in headers:
-           if header_item[0] == 'set-cookie':
-              self.cookie += (header_item[1] + ';')
-        return page
-
-    def get_one_page_context(self, page):
-        table_p = re.compile('<table class="info-list">(.*?)<td colspan="4" class="c">', re.S)
-        table = re.search(table_p, page)
-        # print table.group().decode('utf-8').encode('gbk', 'ignore')
-        if table == None:   #如果没有内容，退出
-            return -1
-        items_p = re.compile('<td><a (.*?)<th>所属主题</th>', re.S)
-        items = re.findall(items_p, table.group())  # 按条取出项目
-
-        release_time_p = re.compile('<td>\d\d\d\d-\d\d-\d\d</td>', re.S)  # 取发布时间正则
-        url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
-        projectname_p = re.compile('<th>标(.*?)</td>', re.S)  # 取项目名称正则
-
-        for item in items:
-            release_time = re.search(release_time_p, item)
-            projectname = re.search(projectname_p, item)
-            url = re.search(url_p, item)
-
-            timestr = release_time.group().replace('<td>', '').replace('</td>', '')
-            if timestr < begintime:
-                return -1
-            prjName = projectname.group().replace('<th>标', '').replace(urllib.unquote('%e3%80%80'),'').replace('题</th>','').replace('<td colspan="3">', '').replace('</td>','').strip()
-            urlstr = 'http://' + self.hostname + url.group().replace('href="','').replace('"','')
-            for key in keys:
-                if prjName.find(key) >= 0:
-                    write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'), urlstr)
-                    print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
-                    break
-        return 0
-
-    def get_all_context(self):
-        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
-        page = self.getpage()
-        while self.get_one_page_context(page) != -1:
-            self.pageindex += 1
-            page = self.getpage()
-        write_returnheader(self.fh)
-
 class WEDZ:
     def __init__(self, filehandler):
         self.sitename = u'武汉经济开发区'
@@ -600,15 +370,15 @@ class WEDZ:
             headers = response.getheaders()
             page = response.read()
                     # print page
-        except Exception, e:
-            print e
-        finally:
-            if httpClient:
-                httpClient.close()
             for header_item in headers:
                 if header_item[0] == 'set-cookie':
                     self.cookie += (header_item[1] + ';')
-            return page
+            httpClient.close()
+        except Exception, e:
+            print e
+            if httpClient:
+                httpClient.close()
+        return page
 
     def get_prj_name(self,urlpath):     #有些公告条目不全（以...结尾)，需从公告的正文里取标题
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
@@ -628,9 +398,9 @@ class WEDZ:
             # print response.getheaders()
             page = response.read()
             # print page
+            httpClient.close()
         except Exception, e:
             print e
-        finally:
             if httpClient:
                 httpClient.close()
 
@@ -845,6 +615,237 @@ class HBBIDDING:
         write_returnheader(self.fh)
 
 #=====================================================================================================================
+class HONGSHAN:
+    def __init__(self, filehandler):
+        self.sitename = u'武汉市洪山区政府'
+        self.hostname = 'www.hongshan.gov.cn'
+        self.fh = filehandler
+        self.pageindex = 1
+        self.cookie = ''
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
+
+    def getpage(self):
+        values = {'method': 'Data', 'cid': '175','currentPage': '%d' % self.pageindex, 'pageSize':'12', 'ids': '0'}
+
+        headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                        # 'Accept-Encoding': 'gzip, deflate',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Referer': 'http://www.hongshan.gov.cn/nav.shtml'}
+
+        url_path = '/hs/PageHandler'
+        params = urllib.urlencode(values)
+        httpClient = None
+        page = ''
+        try:
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient.request('POST', url_path, params, headers)
+            response = httpClient.getresponse()
+            # print response.status
+            # print response.reason
+            headers = response.getheaders()
+            page = response.read()
+                        # print page
+        except Exception, e:
+            print e
+        finally:
+            if httpClient:
+                httpClient.close()
+        for header_item in headers:
+            if header_item[0] == 'set-cookie':
+                self.cookie += (header_item[1] + ';')
+        return page
+
+    def get_one_page_context(self, page):
+        items_p = re.compile('<tr>(.*?)</tr>', re.S)
+        items = re.findall(items_p, page)  # 按条取出项目
+        if items == None:     #没找到条目，退出
+            return -1
+        release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
+        url_p = re.compile('href=\"(.*?)\"', re.S)  # 取URL正则
+        projectname_p = re.compile('title=\'(.*?)\'', re.S)  # 取项目名称正则
+
+        for item in items:
+            release_time = re.search(release_time_p, item)
+            projectname = re.search(projectname_p, item)
+            url = re.search(url_p, item)
+
+            timestr = release_time.group()
+            if timestr < begintime:
+                return -1
+            prjName = projectname.group().replace('title=\'', '').replace('\'','').strip()
+            urlstr = 'http://' + self.hostname + '/' + url.group().replace('href="', '').replace('"', '')
+            for key in keys:
+                if prjName.find(key) >= 0:
+                    write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'), urlstr)
+                    print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                    break
+        return 0
+
+    def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        page = self.getpage()
+        while self.get_one_page_context(page) != -1:
+            self.pageindex += 1
+            page = self.getpage()
+        write_returnheader(self.fh)
+
+class XINZHOU:
+    def __init__(self, filehandler):
+        self.sitename = u'武汉市新洲政府采购网'
+        self.hostname = 'www.whxinzhou.gov.cn'
+        self.fh = filehandler
+        self.page_suffix = ('','_1','_2','_3','_4','_5','_6','_7','_8','_9','_10','_11','_12','_13','_14')
+        self.pageindex = 0
+        self.cookie = ''
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
+
+    def getpage(self):
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                     # 'Accept-Encoding': 'gzip, deflate',
+                   'Referer': 'http://www.whxinzhou.gov.cn/bmdw/cgzx/cgxw/cggg/index.shtml'}
+
+        url_path = '/bmdw/cgzx/cgxw/cggg/index' + self.page_suffix[self.pageindex] + '.shtml'
+        httpClient = None
+        page = ''
+        try:
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient.request('GET', url_path, None, headers)
+            response = httpClient.getresponse()
+                    # print response.status
+                    # print response.reason
+            headers = response.getheaders()
+            page = response.read()
+            #print page
+        except Exception, e:
+            print e
+        finally:
+            if httpClient:
+                httpClient.close()
+        for header_item in headers:
+            if header_item[0] == 'set-cookie':
+                self.cookie += (header_item[1] + ';')
+        return page
+
+    def get_one_page_context(self, page):
+        items_p = re.compile('<div class="work_list">(.*?)</div>', re.S)
+        items = re.findall(items_p, page)  # 按条取出项目
+
+        if items == None:   #没找到条目，退出
+            return -1
+        release_time_p = re.compile('\d\d\d\d年\d\d月\d\d', re.S)  # 取发布时间正则
+        url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
+        projectname_p = re.compile('target="_blank">(.*?)</a>', re.S)  # 取项目名称正则
+
+        for item in items:
+            release_time = re.search(release_time_p, item)
+            projectname = re.search(projectname_p, item)
+            url = re.search(url_p, item)
+
+            timestr = release_time.group().replace('年','-').replace('月','-')
+            if timestr < begintime:
+                return -1
+            prjName = projectname.group().replace('target="_blank">', '').replace('</a>', '').strip()
+            urlstr = 'http://' + self.hostname + '/bmdw/cgzx/cgxw/cggg/' + url.group().replace('href="', '').replace('"', '')
+            for key in keys:
+                if prjName.find(key) >= 0:
+                    write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'),urlstr)
+                    print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                    break
+        return 0
+
+    def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        MaxPageNum = len(self.page_suffix)
+        page = self.getpage()
+        while self.get_one_page_context(page) != -1:
+            self.pageindex += 1
+            if self.pageindex >= MaxPageNum:
+                break
+            page = self.getpage()
+        write_returnheader(self.fh)
+
+
+
+class WEHDZ:
+    def __init__(self, filehandler):
+        self.sitename = u'武汉东湖新技术开发区'
+        self.hostname = 'www.wehdz.gov.cn'
+        self.fh = filehandler
+        self.pageindex = 0
+        self.cookie = ''
+        write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
+
+    def getpage(self):
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
+                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
+                           # 'Accept-Encoding': 'gzip, deflate',
+                   'Referer': 'http://www.wehdz.gov.cn/info/iList.jsp?isSd=false&node_id=GKwehdz&cat_id=3855'}
+
+        url_path = '/info/iList.jsp?node_id=GKwehdz&site_id=HIWCMwehdz&cat_id=3855&cur_page=%d' %self.pageindex
+        httpClient = None
+        page = ''
+        try:
+            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
+            httpClient.request('GET', url_path, None, headers)
+            response = httpClient.getresponse()
+                    # print response.status
+                    # print response.reason
+            headers = response.getheaders()
+            page = response.read()
+                    # print page
+        except Exception, e:
+            print e
+        finally:
+           if httpClient:
+               httpClient.close()
+        for header_item in headers:
+           if header_item[0] == 'set-cookie':
+              self.cookie += (header_item[1] + ';')
+        return page
+
+    def get_one_page_context(self, page):
+        table_p = re.compile('<table class="info-list">(.*?)<td colspan="4" class="c">', re.S)
+        table = re.search(table_p, page)
+        # print table.group().decode('utf-8').encode('gbk', 'ignore')
+        if table == None:   #如果没有内容，退出
+            return -1
+        items_p = re.compile('<td><a (.*?)<th>所属主题</th>', re.S)
+        items = re.findall(items_p, table.group())  # 按条取出项目
+
+        release_time_p = re.compile('<td>\d\d\d\d-\d\d-\d\d</td>', re.S)  # 取发布时间正则
+        url_p = re.compile('href="(.*?)"', re.S)  # 取URL正则
+        projectname_p = re.compile('<th>标(.*?)</td>', re.S)  # 取项目名称正则
+
+        for item in items:
+            release_time = re.search(release_time_p, item)
+            projectname = re.search(projectname_p, item)
+            url = re.search(url_p, item)
+
+            timestr = release_time.group().replace('<td>', '').replace('</td>', '')
+            if timestr < begintime:
+                return -1
+            prjName = projectname.group().replace('<th>标', '').replace(urllib.unquote('%e3%80%80'),'').replace('题</th>','').replace('<td colspan="3">', '').replace('</td>','').strip()
+            urlstr = 'http://' + self.hostname + url.group().replace('href="','').replace('"','')
+            for key in keys:
+                if prjName.find(key) >= 0:
+                    write_html(self.fh, timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore'), urlstr)
+                    print timestr + '  ' + prjName.decode('utf-8').encode('gbk', 'ignore')
+                    break
+        return 0
+
+    def get_all_context(self):
+        write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        page = self.getpage()
+        while self.get_one_page_context(page) != -1:
+            self.pageindex += 1
+            page = self.getpage()
+        write_returnheader(self.fh)
+
 class HSZTBZX:
     def __init__(self, filehandler):
         self.sitename = u'黄石公共资源交易中心'
@@ -1041,24 +1042,26 @@ if __name__ == '__main__':
     filehandler = file('bidding' + CurTime + '.html', 'a')
     filehandler.write('<a name="header"></a>')
 
+    if  ccgp_switch    == 'on':   ccgp = CCGP_HUBEI(filehandler)
     if   hbggzy_switch  == 'on':   hbggzy = HBGGZY(filehandler)
     if   hbbidding_switch == 'on':   hbbidding = HBBIDDING(filehandler)
     if   whzbtb_switch == 'on':   whzbtb = JY_WHZBTB(filehandler)
-    if   hongshan_switch == 'on':  hongshan = HONGSHAN(filehandler)
-    if   xinzhou_switch == 'on':   xinzhou = XINZHOU(filehandler)
-    if   wehdz_switch == 'on':    wehdz = WEHDZ(filehandler)
-    if   wedz_switch == 'on':   wedz = WEDZ(filehandler)
-    if  ccgp_switch    == 'on':   ccgp = CCGP_HUBEI(filehandler)
+    if   wedz_switch == 'on':   wedz = WEDZ(filehandler)              #u'武汉经济开发区'
+    #if   hongshan_switch == 'on':  hongshan = HONGSHAN(filehandler)
+    #if   xinzhou_switch == 'on':   xinzhou = XINZHOU(filehandler)    #u'武汉市新洲政府采购网'
+    #if   wehdz_switch == 'on':    wehdz = WEHDZ(filehandler)         #u'武汉东湖新技术开发区'
+
 
 
     if ccgp_switch == 'on':    ccgp.get_all_context()
     if hbggzy_switch == 'on':    hbggzy.get_all_context()
     if hbbidding_switch == 'on':  hbbidding.get_all_context()
     if whzbtb_switch == 'on':   whzbtb.getcontext()
-    if hongshan_switch == 'on':   hongshan.get_all_context()
-    if xinzhou_switch == 'on':   xinzhou.get_all_context()
-    if wehdz_switch == 'on':   wehdz.get_all_context()
     if wedz_switch == 'on':   wedz.get_all_context()
+    #if hongshan_switch == 'on':   hongshan.get_all_context()
+    #if xinzhou_switch == 'on':   xinzhou.get_all_context()           #u'武汉市新洲政府采购网'
+    #if wehdz_switch == 'on':   wehdz.get_all_context()               #u'武汉东湖新技术开发区'
+    
 
 
 
