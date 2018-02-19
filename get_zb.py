@@ -161,6 +161,7 @@ class HBGGZY:
         self.ViewState = ''
         self.curpage = 1
         self.cookie = ''
+        self.page = ''
         self.keys = [k.decode('utf-8').encode('gbk') for k in keys]
         self.CategoryIDs = [('004001006001', u'房建市政工程'), ('004001006002', u'交通工程'), ('004001006003', u'水利工程'),
                             ('004001006004', u'国土整治'), ('004001006005', u'其他项目'), ('004001006006', u'铁路工程')]
@@ -184,7 +185,7 @@ class HBGGZY:
         url_path = '/hubeizxwz/jyxx/004001/004001006/' + CategoryID + '/MoreInfo.aspx?CategoryNum=' + CategoryID
         params = urllib.urlencode(values)
         httpClient = None
-        page = ''
+        self.page = ''
         try:
             httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=10)
             httpClient.request('POST', url_path, params, headers)
@@ -192,17 +193,18 @@ class HBGGZY:
             # print response.status
             # print response.reason
             headers = response.getheaders()
-            page = response.read()
+            self.page = response.read()
             #print page
-        except Exception, e:
-            print e
-        finally:
-            if httpClient:
-                httpClient.close()
             for header_item in headers:
                 if header_item[0] == 'set-cookie':
                     self.cookie += (header_item[1] + ';')
-            return page
+            return 0
+        except Exception, e:
+            print e
+            if httpClient:
+                httpClient.close()
+            return -1
+            
 
     def getpage_sz(self, RegionID):    #取市州页面
         values = {'__VIEWSTATE': self.ViewState, '__EVENTTARGET': 'MoreInfoList1$Pager',
@@ -218,7 +220,7 @@ class HBGGZY:
         url_path = '/hubeizxwz/tyjyxxpt/' + RegionID + '/'+ RegionID + '001/MoreInfo.aspx?CategoryNum=' + RegionID + '001'
         params = urllib.urlencode(values)
         httpClient = None
-        page = ''
+        self.page = ''
         try:
             httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
             httpClient.request('POST', url_path, params, headers)
@@ -226,18 +228,18 @@ class HBGGZY:
             #print response.status
             #print response.reason
             headers = response.getheaders()
-            page = response.read()
+            self.page = response.read()
             #print page
-        except Exception, e:
-            print e
-        finally:
-            if httpClient:
-                httpClient.close()
             for header_item in headers:
                 if header_item[0] == 'set-cookie':
                     self.cookie += (header_item[1] + ';')
-        # print self.cookie
-            return page
+            httpClient.close()
+            return 0
+        except Exception, e:
+            print e
+            if httpClient:
+                httpClient.close()
+            return -1
 
     def get_prj_name(self,urlpath):     #从公告的正文里取标题
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
@@ -272,18 +274,18 @@ class HBGGZY:
         project_name = re.search(project_name_p,pp.group())
         return project_name.group().replace('<b>','').replace('</b>','').strip()
 
-    def get_one_page_context(self, page):
-        if page == '':
+    def get_one_page_context(self):
+        if self.page == '':
             return -1
         viewstat_p = re.compile('<input type="hidden" name="__VIEWSTATE"(.*?)/>', re.S)
-        viewstat = re.search(viewstat_p, page)  # __VIEWSTATE
+        viewstat = re.search(viewstat_p, self.page)  # __VIEWSTATE
         if viewstat:
             self.ViewState = viewstat.group().replace('<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE"',
                                                       '').replace('value="', '').replace('" />', '').strip()
         # print self.ViewState
 
         table_p = re.compile('id="MoreInfoList1_DataGrid1"(.*?)</table>', re.S)
-        table = re.search(table_p, page)
+        table = re.search(table_p, self.page)
         # print table.group()
         if table:
             items_p = re.compile('<tr valign="(.*?)</tr>', re.S)
@@ -321,20 +323,22 @@ class HBGGZY:
             self.ViewState = ''
             self.curpage = 1
             self.cookie = ''
-            page = self.getpage_sj(cid[0])
-            while self.get_one_page_context(page) != -1:
+            if self.getpage_sj(cid[0]) != 0:
+                break
+            while self.get_one_page_context() != -1:
                 self.curpage += 1
-                page = self.getpage_sj(cid[0])
+                self.getpage_sj(cid[0])
         for rid in self.RegionIDs:  #遍历市州
             self.ViewState = ''
             self.curpage = 1
             self.cookie = ''
             self.fh.write('<p>-----------------' + rid[1].encode('gbk') + '------------------</p>\n')
             print '-----------------' + rid[1].encode('gbk') + '------------------\n'
-            page = self.getpage_sz(rid[0])
-            while self.get_one_page_context(page) != -1:
+            if self.getpage_sz(rid[0]) != 0:
+                break
+            while self.get_one_page_context() != -1:
                 self.curpage += 1
-                page = self.getpage_sz(rid[0])
+                self.getpage_sz(rid[0])
         write_returnheader(self.fh)
 
 
@@ -1047,6 +1051,7 @@ if __name__ == '__main__':
     if  ccgp_switch    == 'on':   ccgp = CCGP_HUBEI(filehandler)
 
 
+    if ccgp_switch == 'on':    ccgp.get_all_context()
     if hbggzy_switch == 'on':    hbggzy.get_all_context()
     if hbbidding_switch == 'on':  hbbidding.get_all_context()
     if whzbtb_switch == 'on':   whzbtb.getcontext()
@@ -1054,7 +1059,7 @@ if __name__ == '__main__':
     if xinzhou_switch == 'on':   xinzhou.get_all_context()
     if wehdz_switch == 'on':   wehdz.get_all_context()
     if wedz_switch == 'on':   wedz.get_all_context()
-    if ccgp_switch == 'on':    ccgp.get_all_context()
+
 
 
     filehandler.close()
