@@ -165,10 +165,6 @@ class HBGGZY:
         self.keys = [k.decode('utf-8').encode('gbk') for k in keys]
         self.CategoryIDs = [('004001006001', u'房建市政工程'), ('004001006002', u'交通工程'), ('004001006003', u'水利工程'),
                             ('004001006004', u'国土整治'), ('004001006005', u'其他项目'), ('004001006006', u'铁路工程')]
-        self.RegionIDs = [('023017',u'武汉市'),('023008',u'黄石市'),('023004',u'襄阳市'),('023002',u'荆州市'),
-                            ('023001',u'宜昌市'),('023013',u'十堰市'),('023010',u'孝感市'),('023009',u'荆门市'),('023006',u'鄂州市'),
-                            ('023007',u'黄冈市'),('023005',u'咸宁市'),('023014',u'随州市'),('023003',u'恩施州'),('023016',u'仙桃市'),
-                            ('023011',u'潜江市'),('023015',u'天门市'),('023012',u'神龙架林区')]
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
     def getpage_sj(self, CategoryID):    #取省级页面
@@ -178,7 +174,7 @@ class HBGGZY:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                    'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
-                   'Accept-Encoding': 'gzip, deflate',
+                   #'Accept-Encoding': 'gzip, deflate',
                    'Cookie': self.cookie,
                    'Content-Type': 'application/x-www-form-urlencoded'}
 
@@ -194,10 +190,11 @@ class HBGGZY:
             # print response.reason
             headers = response.getheaders()
             self.page = response.read()
-            #print page
+            #print self.page
             for header_item in headers:
                 if header_item[0] == 'set-cookie':
                     self.cookie += (header_item[1] + ';')
+            httpClient.close() 
             return 0
         except Exception, e:
             print e
@@ -205,42 +202,6 @@ class HBGGZY:
                 httpClient.close()
             return -1
             
-
-    def getpage_sz(self, RegionID):    #取市州页面
-        values = {'__VIEWSTATE': self.ViewState, '__EVENTTARGET': 'MoreInfoList1$Pager',
-                  '__EVENTARGUMENT': '%d' % self.curpage}
-
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
-                   'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                   'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
-                   'Accept-Encoding': 'gzip, deflate',
-                   'Cookie': self.cookie,
-                   'Content-Type': 'application/x-www-form-urlencoded'}
-
-        url_path = '/hubeizxwz/tyjyxxpt/' + RegionID + '/'+ RegionID + '001/MoreInfo.aspx?CategoryNum=' + RegionID + '001'
-        params = urllib.urlencode(values)
-        httpClient = None
-        self.page = ''
-        try:
-            httpClient = httplib.HTTPConnection(self.hostname, 80, timeout=30)
-            httpClient.request('POST', url_path, params, headers)
-            response = httpClient.getresponse()
-            #print response.status
-            #print response.reason
-            headers = response.getheaders()
-            self.page = response.read()
-            #print page
-            for header_item in headers:
-                if header_item[0] == 'set-cookie':
-                    self.cookie += (header_item[1] + ';')
-            httpClient.close()
-            return 0
-        except Exception, e:
-            print e
-            if httpClient:
-                httpClient.close()
-            return -1
-
     def get_prj_name(self,urlpath):     #从公告的正文里取标题
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -293,7 +254,7 @@ class HBGGZY:
 
             release_time_p = re.compile('\d\d\d\d-\d\d-\d\d', re.S)  # 取发布时间正则
             url_p = re.compile('href=\"(.*?)\"', re.S)  # 取URL正则
-            #projectname_p = re.compile('title="(.*?)">', re.S)  # 取项目名称正则
+            projectname_p = re.compile('title="(.*?)">', re.S)  # 取项目名称正则
 
             for item in items:
                 release_time = re.search(release_time_p, item)
@@ -303,17 +264,16 @@ class HBGGZY:
                 if timestr < begintime:
                     return -1
                 urlstr =  url.group().replace('href="', '').replace('"', '')
-                prjName = self.get_prj_name(urlstr)
-                if prjName == None:
-                    continue
-                prjName = self.get_prj_name(urlstr)      #读取报告页面，并从报告里取项目名称
+                prjName = re.search(projectname_p, item).group().replace('title="', '').replace('">', '')
                 urlstr = 'http://'+ self.hostname + urlstr
                 for key in self.keys:
                     if prjName.find(key) >= 0:
                         write_html(self.fh,timestr + '  ' + prjName,urlstr)
                         print timestr + '  ' + prjName
                         break
-        return 0
+            return 0
+        else:
+            return -1
 
     def get_all_context(self):
         write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
@@ -328,17 +288,6 @@ class HBGGZY:
             while self.get_one_page_context() != -1:
                 self.curpage += 1
                 self.getpage_sj(cid[0])
-        for rid in self.RegionIDs:  #遍历市州
-            self.ViewState = ''
-            self.curpage = 1
-            self.cookie = ''
-            self.fh.write('<p>-----------------' + rid[1].encode('gbk') + '------------------</p>\n')
-            print '-----------------' + rid[1].encode('gbk') + '------------------\n'
-            if self.getpage_sz(rid[0]) != 0:
-                break
-            while self.get_one_page_context() != -1:
-                self.curpage += 1
-                self.getpage_sz(rid[0])
         write_returnheader(self.fh)
 
 class WEDZ:
