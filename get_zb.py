@@ -476,7 +476,7 @@ class JY_WHZBTB:
 
 class HBBIDDING:
     def __init__(self, filehandler):
-        self.sitename = u'湖北设备工程招标有限公司'
+        self.sitename = u'湖北省招标股份有限公司'
         self.hostname = 'www.hbbidding.com.cn'
         self.fh = filehandler
         self.page = ''
@@ -485,7 +485,7 @@ class HBBIDDING:
         self.pageflag = 0
         write_jump(self.fh, self.sitename.encode('gbk'), self.hostname)
 
-    def getpage(self):
+    def getpage(self,strURL):
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:49.0) Gecko/20100101 Firefox/49.0',
                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
@@ -493,7 +493,7 @@ class HBBIDDING:
                'Referer': 'http://www.hbbidding.com.cn/list/16.html'
                }
 
-        url_path = '/list/16.html?page='+str(self.curpage)
+        url_path = strURL+'?page='+str(self.curpage)
         httpClient = None
         self.page = ''
         try:
@@ -553,9 +553,24 @@ class HBBIDDING:
 
     def get_all_context(self):
         write_header(self.fh, self.sitename.encode('gbk'), self.hostname)
+        self.curpage = 1
+        self.maxpage = 1
+        self.pageflag = 0
         while self.curpage <= self.maxpage:
             print str(self.curpage)+'  '+str(self.maxpage)
-            if self.getpage() == 0:
+            if self.getpage('/list/19.html') == 0:
+                if self.get_one_page_context() == -1:
+                    break
+            self.curpage += 1
+            if self.pageflag == 1:
+                self.maxpage = self.curpage + 5
+                
+        self.curpage = 1
+        self.maxpage = 1
+        self.pageflag = 0
+        while self.curpage <= self.maxpage:
+            print str(self.curpage)+'  '+str(self.maxpage)
+            if self.getpage('/list/21.html') == 0:
                 if self.get_one_page_context() == -1:
                     break
             self.curpage += 1
